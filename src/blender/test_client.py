@@ -165,41 +165,47 @@ def test_rendering(client: BlenderClient) -> None:
     print("创建测试渲染场景...")
     
     # 创建一个平面作为地面
-    print_response("创建地面平面", 
-                  client.create_object("PLANE", name="渲染测试_地面", 
-                                     location=(0, 0, 0), 
-                                     scale=(5, 5, 1)))
+    # print_response("创建地面平面", 
+    #               client.create_object("PLANE", name="渲染测试_地面", 
+    #                                  location=(0, 0, 0), 
+    #                                  scale=(5, 5, 1)))
     
-    # 创建一个立方体
-    print_response("创建测试立方体", 
-                  client.create_object("CUBE", name="渲染测试_立方体", 
-                                     location=(0, 0, 1)))
+    # # 创建一个立方体
+    # print_response("创建测试立方体", 
+    #               client.create_object("CUBE", name="渲染测试_立方体", 
+    #                                  location=(0, 0, 1)))
     
-    # 创建一个球体
-    print_response("创建测试球体", 
-                  client.create_object("SPHERE", name="渲染测试_球体", 
-                                     location=(2, 2, 1), 
-                                     scale=(0.8, 0.8, 0.8)))
+    # # 创建一个球体
+    # print_response("创建测试球体", 
+    #               client.create_object("SPHERE", name="渲染测试_球体", 
+    #                                  location=(2, 2, 1), 
+    #                                  scale=(0.8, 0.8, 0.8)))
     
-    # 创建一个光源
-    print_response("创建光源", 
-                  client.create_object("LIGHT", name="渲染测试_光源", 
-                                     location=(3, -3, 5)))
+    # # 创建一个光源
+    # print_response("创建光源", 
+    #               client.create_object("LIGHT", name="渲染测试_光源", 
+    #                                  location=(3, -3, 5)))
     
-    # 为物体添加材质
-    print_response("为立方体设置红色材质",
-                  client.set_material("渲染测试_立方体", 
-                                     material_name="渲染测试_红色材质", 
-                                     color=[1.0, 0.0, 0.0, 1.0]))
+    # # 为物体添加材质
+    # print_response("为立方体设置红色材质",
+    #               client.set_material("渲染测试_立方体", 
+    #                                  material_name="渲染测试_红色材质", 
+    #                                  color=[1.0, 0.0, 0.0, 1.0]))
     
-    print_response("为球体设置蓝色材质",
-                  client.set_material("渲染测试_球体", 
-                                     material_name="渲染测试_蓝色材质", 
-                                     color=[0.0, 0.0, 1.0, 1.0]))
+    # print_response("为球体设置蓝色材质",
+    #               client.set_material("渲染测试_球体", 
+    #                                  material_name="渲染测试_蓝色材质", 
+    #                                  color=[0.0, 0.0, 1.0, 1.0]))
     
     # 渲染场景并返回图像
     print("渲染场景并获取图像数据...")
-    render_result = client.render_scene(resolution_x=800, resolution_y=600, return_image=True)
+    render_result = client.render_scene(
+        resolution_x=800, 
+        resolution_y=600, 
+        return_image=True,
+        auto_save=True,
+        save_dir="renders"
+    )
     print_response("渲染结果", render_result)
     
     # 检查是否成功获取图像数据
@@ -208,6 +214,9 @@ def test_rendering(client: BlenderClient) -> None:
         image_data = result["image_data"]
         print(f"成功获取图像数据，长度: {len(image_data)} 字节")
         print("图像数据前100个字符: " + image_data[:100] + "...")
+        
+        if "saved_to" in result:
+            print(f"图像已自动保存到: {result['saved_to']}")
     else:
         print("未能获取图像数据")
     
@@ -218,7 +227,13 @@ def test_rendering(client: BlenderClient) -> None:
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
         output_path = tmp_file.name
     
-    render_file_result = client.render_scene(output_path=output_path, resolution_x=800, resolution_y=600, return_image=False)
+    render_file_result = client.render_scene(
+        output_path=output_path, 
+        resolution_x=800, 
+        resolution_y=600, 
+        return_image=False,
+        auto_save=False
+    )
     print_response("渲染到文件结果", render_file_result)
     
     if os.path.exists(output_path):
@@ -235,7 +250,7 @@ def main():
     parser = argparse.ArgumentParser(description="Blender MCP 客户端测试")
     parser.add_argument("--host", default="localhost", help="Blender MCP 服务器主机名")
     parser.add_argument("--port", type=int, default=9876, help="Blender MCP 服务器端口号")
-    parser.add_argument("--test", default="all", 
+    parser.add_argument("--test", default="render", 
                       choices=["all", "basic", "code", "polyhaven", "hyper3d", "render"], 
                       help="要运行的测试")
     

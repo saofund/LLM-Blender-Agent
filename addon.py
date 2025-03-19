@@ -9,6 +9,7 @@ import tempfile
 import traceback
 import os
 import shutil
+import base64
 from bpy.props import StringProperty, IntProperty, BoolProperty, EnumProperty
 
 bl_info = {
@@ -208,6 +209,7 @@ class BlenderMCPServer:
             "get_object_info": self.get_object_info,
             "execute_code": self.execute_code,
             "set_material": self.set_material,
+            "render_scene": self.render_scene,
             "get_polyhaven_status": self.get_polyhaven_status,
             "get_hyper3d_status": self.get_hyper3d_status,
         }
@@ -570,7 +572,7 @@ class BlenderMCPServer:
                 "material": material_name if 'material_name' in locals() else None
             }
     
-    def render_scene(self, output_path=None, resolution_x=None, resolution_y=None):
+    def render_scene(self, output_path=None, resolution_x=None, resolution_y=None, return_image=False):
         """Render the current scene"""
         if resolution_x is not None:
             bpy.context.scene.render.resolution_x = resolution_x
@@ -578,17 +580,47 @@ class BlenderMCPServer:
         if resolution_y is not None:
             bpy.context.scene.render.resolution_y = resolution_y
         
-        if output_path:
-            bpy.context.scene.render.filepath = output_path
+        # 创建临时文件路径用于保存渲染结果
+        temp_path = None
+        if return_image or not output_path:
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
+                temp_path = tmp_file.name
         
-        # Render the scene
-        bpy.ops.render.render(write_still=bool(output_path))
+        # 设置输出路径
+        render_path = output_path if output_path else temp_path
+        bpy.context.scene.render.filepath = render_path
         
-        return {
+        # 渲染场景
+        bpy.ops.render.render(write_still=True)
+        
+        result = {
             "rendered": True,
-            "output_path": output_path if output_path else "[not saved]",
+            "output_path": output_path if output_path else "[temp file]",
             "resolution": [bpy.context.scene.render.resolution_x, bpy.context.scene.render.resolution_y],
         }
+        
+        # 如果需要返回图像数据
+        if return_image and os.path.exists(render_path):
+            try:
+                # 读取渲染后的图像文件
+                with open(render_path, 'rb') as img_file:
+                    img_data = img_file.read()
+                
+                # 将图像编码为base64字符串
+                img_base64 = base64.b64encode(img_data).decode('utf-8')
+                result["image_data"] = img_base64
+                
+                # 如果使用了临时文件且不需要保留，则删除该文件
+                if temp_path and not output_path:
+                    try:
+                        os.unlink(temp_path)
+                    except:
+                        pass
+            except Exception as e:
+                print(f"读取渲染图像文件错误: {str(e)}")
+                result["image_error"] = str(e)
+        
+        return result
 
     def get_polyhaven_categories(self, asset_type):
         """Get categories for a specific asset type from Polyhaven"""

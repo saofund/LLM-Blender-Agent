@@ -4,6 +4,7 @@ Blender MCP客户端
 import json
 import socket
 from typing import Dict, Any, List, Optional, Union, Tuple
+from datetime import datetime
 
 class BlenderClient:
     """
@@ -337,6 +338,107 @@ class BlenderClient:
         """
         return self.send_command("get_hyper3d_status")
     
+    def render_scene(self, output_path: Optional[str] = None, 
+                    resolution_x: Optional[int] = None, 
+                    resolution_y: Optional[int] = None,
+                    return_image: bool = True,
+                    auto_save: bool = True,
+                    save_dir: str = "renders") -> Dict[str, Any]:
+        """
+        渲染当前场景
+        
+        Args:
+            output_path: 输出文件路径（可选）
+            resolution_x: 渲染宽度（可选）
+            resolution_y: 渲染高度（可选）
+            return_image: 是否返回图像数据，默认为True
+            auto_save: 是否自动保存图像数据到本地，默认为True
+            save_dir: 自动保存时使用的目录，默认为"renders"
+            
+        Returns:
+            渲染结果，如果return_image为True，则包含base64编码的图像数据
+        """
+        params = {}
+        
+        if output_path:
+            params["output_path"] = output_path
+            
+        if resolution_x is not None:
+            params["resolution_x"] = resolution_x
+            
+        if resolution_y is not None:
+            params["resolution_y"] = resolution_y
+            
+        params["return_image"] = return_image
+        
+        response = self.send_command("render_scene", params)
+        
+        # 如果需要自动保存并且成功获取到图像数据
+        if auto_save and return_image and response.get("status") == "success":
+            result = response.get("result", {})
+            if "image_data" in result:
+                # 生成保存路径
+                import os
+                from datetime import datetime
+                
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                filename = f"render_{timestamp}.png"
+                save_path = os.path.join(save_dir, filename)
+                
+                # 保存图像
+                self.save_render_image(response, save_path)
+                
+                # 在结果中添加保存路径信息
+                result["saved_to"] = save_path
+        
+        return response
+    
+    def save_render_image(self, render_result: Dict[str, Any], save_path: str, create_dirs: bool = True) -> bool:
+        """
+        将渲染结果中的图像数据保存到文件
+        
+        Args:
+            render_result: render_scene方法返回的结果
+            save_path: 保存图像的文件路径
+            create_dirs: 是否自动创建目录，默认为True
+            
+        Returns:
+            是否成功保存图像
+        """
+        import base64
+        import os
+        
+        try:
+            # 检查结果是否包含图像数据
+            if render_result.get("status") != "success":
+                print(f"渲染结果状态不是success: {render_result.get('status')}")
+                return False
+                
+            result = render_result.get("result", {})
+            if "image_data" not in result:
+                print("渲染结果中不包含图像数据")
+                return False
+            
+            # 获取base64编码的图像数据
+            image_data = result["image_data"]
+            
+            # 确保目标目录存在
+            save_dir = os.path.dirname(save_path)
+            if save_dir and not os.path.exists(save_dir) and create_dirs:
+                os.makedirs(save_dir)
+            
+            # 将base64编码的图像数据解码并保存到文件
+            with open(save_path, "wb") as img_file:
+                img_data = base64.b64decode(image_data)
+                img_file.write(img_data)
+            
+            print(f"图像已保存到: {os.path.abspath(save_path)}")
+            return True
+            
+        except Exception as e:
+            print(f"保存图像时出错: {str(e)}")
+            return False
+    
     def create_rodin_job(self, text_prompt: Optional[str] = None,
                         images: Optional[List[Tuple[str, str]]] = None,
                         bbox_condition: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -410,6 +512,8 @@ def main():
     测试与Blender MCP服务器的连接
     """
     import sys
+    import os
+    from datetime import datetime
     
     # 创建客户端实例
     print("创建BlenderClient实例...")
@@ -432,6 +536,34 @@ def main():
             print("\n创建一个立方体...")
             cube_response = client.create_object("CUBE", name="测试立方体", location=(0, 0, 3))
             print(f"创建结果: {json.dumps(cube_response, ensure_ascii=False, indent=2)}")
+            
+            # 设置红色材质
+            print("\n为立方体设置红色材质...")
+            material_response = client.set_material("测试立方体", 
+                                                 material_name="测试红色材质", 
+                                                 color=[1.0, 0.0, 0.0, 1.0])
+            print(f"设置材质结果: {json.dumps(material_response, ensure_ascii=False, indent=2)}")
+            
+            # 渲染场景并保存图像
+            print("\n渲染场景并保存图像...")
+            render_response = client.render_scene(
+                resolution_x=800, 
+                resolution_y=600, 
+                return_image=True,
+                auto_save=True,
+                save_dir="renders"
+            )
+            
+            if render_response.get("status") == "success":
+                result = render_response.get("result", {})
+                if "image_data" in result:
+                    print(f"成功获取渲染图像数据，长度: {len(result['image_data'])} 字节")
+                    if "saved_to" in result:
+                        print(f"图像已自动保存到: {result['saved_to']}")
+                else:
+                    print("渲染成功但未返回图像数据")
+            else:
+                print(f"渲染失败: {render_response.get('message')}")
     except KeyboardInterrupt:
         print("\n用户中断操作")
         sys.exit(1)
