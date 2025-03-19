@@ -1,0 +1,25 @@
+{
+  "blender_mcp": {
+    "host": "localhost",
+    "port": 9876
+  },
+  "llm": {
+    "default_model": "claude",
+    "claude": {
+      "api_key": "",
+      "model": "claude-3-opus-20240229"
+    },
+    "zhipu": {
+      "api_key": "",
+      "model": "glm-4"
+    },
+    "deepseek": {
+      "api_key": "",
+      "model": "deepseek-coder-v2"
+    },
+    "openai": {
+      "api_key": "",
+      "model": "gpt-4o"
+    }
+  }
+} 
