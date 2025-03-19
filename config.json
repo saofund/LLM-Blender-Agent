@@ -7,15 +7,27 @@
     "default_model": "claude",
     "claude": {
       "api_key": "",
-      "model": "claude-3-opus-20240229"
+      "model": "claude-3-7-sonnet"
     },
     "zhipu": {
       "api_key": "",
-      "model": "glm-4"
+      "model": "glm-4-plus"
+    },
+    "doubao": {
+      "api_key": "",
+      "model": "doubao-1-5-pro-32k-250115"
+    },
+    "moonshot": {
+      "api_key": "",
+      "model": "kimi-latest-32k"
+    },
+    "aimlapi": {
+      "api_key": "",
+      "model": "claude-3-7-sonnet-20250219"
     },
     "deepseek": {
       "api_key": "",
-      "model": "deepseek-coder-v2"
+      "model": "deepseek-chat"
     },
     "openai": {
       "api_key": "",
