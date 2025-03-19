@@ -5,4 +5,5 @@ gradio>=3.50.0
 argparse>=1.4.0
 requests>=2.31.0
 websocket-client>=1.7.0
-tenacity>=8.2.0 
+tenacity>=8.2.0
+volcengine-python-sdk[ark]>=0.1.0 

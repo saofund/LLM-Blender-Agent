@@ -9,12 +9,18 @@ from .base import BaseLLM
 from .claude import ClaudeLLM
 from .zhipu import ZhipuLLM
 from .deepseek import DeepSeekLLM
+from .doubao import DoubaoLLM
+from .moonshot import MoonshotLLM
+from .aimlapi import AIMLAPI_LLM
 
 # 支持的LLM模型
 LLM_MODELS = {
     "claude": ClaudeLLM,
     "zhipu": ZhipuLLM,
-    "deepseek": DeepSeekLLM
+    "deepseek": DeepSeekLLM,
+    "doubao": DoubaoLLM,
+    "moonshot": MoonshotLLM,
+    "aimlapi": AIMLAPI_LLM
 }
 
 class LLMFactory:
