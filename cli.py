@@ -21,7 +21,7 @@ def main():
     
     # 命令行参数
     parser = argparse.ArgumentParser(description="LLM-Blender-Agent命令行接口")
-    parser.add_argument("--model", type=str, default="claude", help="要使用的LLM模型类型（claude, zhipu, deepseek）")
+    parser.add_argument("--model", type=str, default="aimlapi", help="要使用的LLM模型类型（claude, zhipu, deepseek）")
     parser.add_argument("--config", type=str, default="config.json", help="配置文件路径")
     parser.add_argument("--host", type=str, default="localhost", help="Blender MCP服务器主机名")
     parser.add_argument("--port", type=int, default=9876, help="Blender MCP服务器端口号")

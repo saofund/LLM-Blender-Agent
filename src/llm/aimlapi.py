@@ -3,8 +3,24 @@ AIMLAPI 实现
 """
 import json
 import requests
+import os
+import sys
 from typing import Dict, List, Any, Optional
-from .base import BaseLLM
+
+# 处理导入路径
+if __name__ == "__main__":
+    # 获取项目根目录的绝对路径
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(os.path.dirname(current_dir))
+    
+    # 将项目根目录添加到Python路径
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    
+    from src.llm.base import BaseLLM
+else:
+    # 作为模块导入时使用相对导入
+    from .base import BaseLLM
 
 class AIMLAPI_LLM(BaseLLM):
     """AIMLAPI接口实现"""
@@ -159,7 +175,6 @@ class AIMLAPI_LLM(BaseLLM):
 
 if __name__ == "__main__":
     """测试AIMLAPI连接"""
-    import os
     import json
     
     # 读取配置文件
