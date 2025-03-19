@@ -425,21 +425,10 @@ if __name__ == "__main__":
         
         # ============= 测试本地图片输入 =============
         print("\n\n===== 测试本地图片输入 =====")
-        # 尝试在项目根目录下查找测试图片
-        test_image_paths = [
-            os.path.join(project_root, "test_image.jpg"),
-            os.path.join(project_root, "test.jpg"),
-            os.path.join(project_root, "test.png")
-        ]
-        
-        # 查找第一个存在的图片
-        test_image_path = None
-        for path in test_image_paths:
-            if os.path.exists(path):
-                test_image_path = path
-                break
+        # 设置测试图片路径为asserts/test_image.jpg
+        test_image_path = os.path.join(project_root, "asserts", "test_image.jpg")
                 
-        if test_image_path:
+        if os.path.exists(test_image_path):
             print(f"找到测试图片: {test_image_path}")
             
             # 原始方式测试
@@ -482,41 +471,8 @@ if __name__ == "__main__":
             )
             print("\n混合图片输入响应:", mixed_response.get("content"))
         else:
-            print(f"本地图片测试跳过: 找不到测试图片")
-            print("提示: 请在项目根目录放置一张名为test_image.jpg、test.jpg或test.png的图片用于测试")
-            
-            # 如果用户想测试，可以创建一个简单的示例
-            create_test_image = input("是否要创建一个测试图片? (y/n): ")
-            if create_test_image.lower() == 'y':
-                try:
-                    # 尝试使用PIL创建一个简单的测试图片
-                    from PIL import Image, ImageDraw, ImageFont
-                    
-                    # 创建一个白色背景的图片
-                    img = Image.new('RGB', (400, 200), color=(255, 255, 255))
-                    d = ImageDraw.Draw(img)
-                    
-                    # 添加简单的文字
-                    d.text((10, 10), "这是一张测试图片", fill=(0, 0, 0))
-                    d.text((10, 50), "测试Claude的图片识别功能", fill=(0, 0, 0))
-                    d.rectangle([(20, 80), (380, 180)], outline=(255, 0, 0))
-                    
-                    # 保存图片
-                    test_image_path = os.path.join(project_root, "test_image.jpg")
-                    img.save(test_image_path)
-                    
-                    print(f"已创建测试图片: {test_image_path}")
-                    
-                    # 使用简化方法测试
-                    print("测试生成的图片...")
-                    image_response = llm.image_chat(
-                        text="这张图片是什么，请详细描述一下。",
-                        images=[test_image_path]
-                    )
-                    print("\n生成图片响应:", image_response.get("content"))
-                except Exception as e:
-                    print(f"创建测试图片失败: {str(e)}")
-                    print("请手动在项目根目录放置测试图片")
+            print(f"本地图片测试跳过: 找不到测试图片，路径: {test_image_path}")
+            print("请确认asserts目录中有test_image.jpg文件")
         
         print("\n测试完成")
         
