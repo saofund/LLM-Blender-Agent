@@ -156,3 +156,73 @@ class AIMLAPI_LLM(BaseLLM):
             result["error"] = str(e)
         
         return result 
+
+if __name__ == "__main__":
+    """测试AIMLAPI连接"""
+    import os
+    import json
+    
+    # 读取配置文件
+    try:
+        # 获取项目根目录路径
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        config_file = os.path.join(project_root, "config.json")
+        
+        with open(config_file, "r", encoding="utf-8") as f:
+            config = json.load(f)
+            
+        # 获取AIMLAPI配置
+        aimlapi_config = config.get("llm", {}).get("aimlapi", {})
+        api_key = aimlapi_config.get("api_key", "")
+        model = aimlapi_config.get("model", "claude-3-7-sonnet-20250219")
+        
+        if not api_key:
+            print("错误: 配置文件中未找到有效的AIMLAPI API密钥")
+            exit(1)
+            
+        # 创建AIMLAPI实例
+        llm = AIMLAPI_LLM(api_key=api_key, model=model)
+        
+        # 测试简单对话
+        messages = [
+            {"role": "user", "content": "你好，请简单介绍一下你自己。"}
+        ]
+        
+        # 定义一个简单的测试函数
+        test_function = [{
+            "name": "create_cube",
+            "description": "在Blender中创建一个立方体",
+            "parameters": {
+                "size": {
+                    "type": "number",
+                    "description": "立方体的大小"
+                },
+                "location": {
+                    "type": "array",
+                    "description": "立方体的位置坐标 [x, y, z]"
+                }
+            },
+            "required": ["size"]
+        }]
+        
+        # 进行对话
+        print("正在测试AIMLAPI连接...")
+        response = llm.chat(messages=messages, functions=test_function)
+        
+        # 打印响应
+        print("\n===== 响应内容 =====")
+        if response.get("content"):
+            print("文本响应:", response["content"])
+        
+        if response.get("function_call"):
+            print("\n函数调用:")
+            print(f"  函数名称: {response['function_call']['name']}")
+            print(f"  函数参数: {json.dumps(response['function_call']['arguments'], ensure_ascii=False, indent=2)}")
+            
+        if response.get("error"):
+            print("\n错误信息:", response["error"])
+            
+        print("\n测试完成")
+        
+    except Exception as e:
+        print(f"测试过程中出现错误: {str(e)}") 
