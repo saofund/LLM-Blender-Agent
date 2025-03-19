@@ -1,48 +1,48 @@
 # LLM-Blender-Agent
 
-这是一个使用不同大语言模型(LLM)的Function Call功能来操作Blender的项目。该项目允许用户通过各种LLM接口（如Claude、智谱AI、DeepseekV3等）使用自然语言操控Blender进行3D建模。
+This is a project that uses the Function Call capability of different Large Language Models (LLMs) to operate Blender. The project allows users to control Blender for 3D modeling using natural language through various LLM interfaces (such as Claude, Zhipu AI, DeepseekV3, etc.).
 
-## 功能特点
+## Features
 
-- 支持多种LLM接口的无缝切换（Claude、智谱AI、DeepseekV3等）
-- 统一的Function Call处理框架
-- 命令行界面和Gradio Web UI两种交互方式
-- 完整支持BlenderMCP插件提供的所有功能
-- 易于扩展，支持添加新的LLM提供商
+- Seamless switching between multiple LLM interfaces (Claude, Zhipu AI, DeepseekV3, etc.)
+- Unified Function Call processing framework
+- Two interaction modes: Command-line interface and Gradio Web UI
+- Complete support for all features provided by the BlenderMCP plugin
+- Easily extensible, supporting the addition of new LLM providers
 
-## 安装要求
+## Installation Requirements
 
 ```bash
-# 安装依赖
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-此外，您需要在Blender中安装BlenderMCP插件，并启动MCP服务器。
+Additionally, you need to install the BlenderMCP plugin in Blender and start the MCP server.
 
-## 使用方法
+## Usage
 
-### 命令行模式
+### Command-line Mode
 
 ```bash
-# 使用特定LLM启动命令行界面
-python cli.py --model claude  # 或 zhipu、deepseek 等
+# Start the command-line interface with a specific LLM
+python cli.py --model claude  # or zhipu, deepseek, etc.
 
-# 查看帮助
+# View help
 python cli.py --help
 ```
 
-### Gradio Web UI模式
+### Gradio Web UI Mode
 
 ```bash
-# 启动Web UI
+# Start the Web UI
 python app.py
 ```
 
-然后在浏览器中访问 http://localhost:7860
+Then visit http://localhost:7860 in your browser
 
-## LLM配置
+## LLM Configuration
 
-在 `config.json` 文件中设置您的API密钥和模型配置：
+Set your API keys and model configurations in the `config.json` file:
 
 ```json
 {
@@ -61,6 +61,6 @@ python app.py
 }
 ```
 
-## 许可证
+## License
 
 MIT License 
