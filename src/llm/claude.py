@@ -9,7 +9,7 @@ from .base import BaseLLM
 class ClaudeLLM(BaseLLM):
     """Claude API实现"""
     
-    def __init__(self, api_key: str, model: str = "claude-3-opus-20240229", **kwargs):
+    def __init__(self, api_key: str, model: str = "claude-3-7-sonnet-20250219", **kwargs):
         """
         初始化Claude LLM接口
         
@@ -19,7 +19,7 @@ class ClaudeLLM(BaseLLM):
             **kwargs: 其他参数
         """
         super().__init__(api_key, model, **kwargs)
-        self.client = anthropic.Anthropic(api_key=api_key)
+        self.client = anthropic.Anthropic(api_key=api_key, base_url="https://api.anthropic.com/v1")
         
     def chat(self, messages: List[Dict[str, str]], functions: List[Dict[str, Any]],
             temperature: float = 0.7, max_tokens: Optional[int] = None) -> Dict[str, Any]:
