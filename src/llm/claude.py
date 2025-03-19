@@ -19,7 +19,7 @@ class ClaudeLLM(BaseLLM):
             **kwargs: 其他参数
         """
         super().__init__(api_key, model, **kwargs)
-        self.client = anthropic.Anthropic(api_key=api_key, base_url="https://api.anthropic.com/v1")
+        self.client = anthropic.Anthropic(api_key=api_key)
         
     def chat(self, messages: List[Dict[str, str]], functions: List[Dict[str, Any]],
             temperature: float = 0.7, max_tokens: Optional[int] = None) -> Dict[str, Any]:
