@@ -41,30 +41,57 @@ class BlenderClient:
             "params": params
         }
         
+        print(f"准备发送命令: {command_type}")
+        
         try:
             # 创建socket连接
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                # 设置超时时间为5秒
+                sock.settimeout(5)
+                print(f"尝试连接到 {self.host}:{self.port}...")
                 sock.connect((self.host, self.port))
+                print("连接成功，发送数据...")
                 
                 # 发送命令
-                sock.sendall(json.dumps(command).encode('utf-8'))
+                command_data = json.dumps(command).encode('utf-8')
+                sock.sendall(command_data)
+                print(f"已发送数据: {len(command_data)} 字节")
                 
                 # 接收响应
                 response_data = b''
+                print("等待服务器响应...")
                 while True:
-                    data = sock.recv(8192)
-                    if not data:
+                    try:
+                        data = sock.recv(8192)
+                        if not data:
+                            break
+                        response_data += data
+                        print(f"收到数据: {len(data)} 字节")
+                    except socket.timeout:
+                        print("接收响应超时")
                         break
-                    response_data += data
                 
                 # 解析响应
                 if response_data:
-                    response = json.loads(response_data.decode('utf-8'))
-                    return response
+                    try:
+                        print(f"解析响应数据: {len(response_data)} 字节")
+                        response = json.loads(response_data.decode('utf-8'))
+                        return response
+                    except json.JSONDecodeError as je:
+                        print(f"JSON解析错误: {str(je)}")
+                        return {"status": "error", "message": f"解析响应失败: {str(je)}"}
                 else:
+                    print("未收到响应数据")
                     return {"status": "error", "message": "没有收到响应"}
                 
+        except socket.timeout:
+            print("连接超时")
+            return {
+                "status": "error",
+                "message": "连接Blender MCP服务器超时"
+            }
         except Exception as e:
+            print(f"发生异常: {type(e).__name__}: {str(e)}")
             return {
                 "status": "error",
                 "message": f"连接Blender MCP服务器失败: {str(e)}"
@@ -376,4 +403,41 @@ class BlenderClient:
         else:
             params["request_id"] = job_id
             
-        return self.send_command("import_generated_asset", params) 
+        return self.send_command("import_generated_asset", params)
+
+def main():
+    """
+    测试与Blender MCP服务器的连接
+    """
+    import sys
+    
+    # 创建客户端实例
+    print("创建BlenderClient实例...")
+    client = BlenderClient()
+    
+    # 尝试连接并获取场景信息
+    print("尝试连接到Blender MCP服务器...")
+    
+    try:
+        response = client.get_scene_info()
+        
+        # 输出连接结果
+        if response.get("status") == "error":
+            print(f"连接失败: {response.get('message')}")
+        else:
+            print("连接成功！")
+            print(f"场景信息: {json.dumps(response, ensure_ascii=False, indent=2)}")
+            
+            # 尝试创建一个立方体
+            print("\n创建一个立方体...")
+            cube_response = client.create_object("CUBE", name="测试立方体", location=(0, 0, 3))
+            print(f"创建结果: {json.dumps(cube_response, ensure_ascii=False, indent=2)}")
+    except KeyboardInterrupt:
+        print("\n用户中断操作")
+        sys.exit(1)
+    except Exception as e:
+        print(f"发生未预期的异常: {type(e).__name__}: {str(e)}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main() 
