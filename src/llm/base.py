@@ -2,7 +2,7 @@
 LLM基础接口类定义
 """
 from abc import ABC, abstractmethod
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Iterator
 
 class BaseLLM(ABC):
     """大语言模型基础接口类"""
@@ -84,4 +84,22 @@ class BaseLLM(ABC):
         Returns:
             统一格式的响应，包含content和function_call等字段
         """
-        pass 
+        pass
+    
+    def chat_stream(self, messages: List[Dict[str, Any]], functions: List[Dict[str, Any]] = None,
+                  temperature: float = 0.7, max_tokens: Optional[int] = None) -> Iterator[Dict[str, Any]]:
+        """
+        与LLM进行流式对话
+        
+        Args:
+            messages: 对话历史消息列表
+            functions: 函数定义列表（可选）
+            temperature: 温度参数，控制随机性
+            max_tokens: 最大生成token数
+            
+        Returns:
+            生成器，产生LLM的流式响应块
+        """
+        # 默认实现，子类应当覆盖此方法以提供真正的流式响应
+        response = self.chat(messages, functions, temperature, max_tokens)
+        yield response # 一次性返回完整响应 

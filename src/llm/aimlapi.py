@@ -6,7 +6,7 @@ import requests
 import os
 import sys
 import base64
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Union, Iterator
 
 # 处理导入路径
 if __name__ == "__main__":
@@ -100,6 +100,133 @@ class AIMLAPI_LLM(BaseLLM):
                     print("无法打印请求体")
             
             return {
+                "content": f"与AIMLAPI通信出错: {str(e)}",
+                "function_call": None,
+                "error": str(e)
+            }
+    
+    def chat_stream(self, messages: List[Dict[str, Any]], functions: List[Dict[str, Any]] = None,
+                  temperature: float = 0.7, max_tokens: Optional[int] = None) -> Iterator[Dict[str, Any]]:
+        """
+        与AIMLAPI进行流式对话，支持function calling和本地图片输入
+        
+        Args:
+            messages: 对话历史消息列表
+            functions: 函数定义列表
+            temperature: 温度参数，控制随机性
+            max_tokens: 最大生成token数
+            
+        Returns:
+            生成器，产生AIMLAPI的流式响应块
+        """
+        # 处理消息格式，转换为AIMLAPI支持的格式
+        formatted_messages = self.format_messages(messages)
+        formatted_functions = self.format_functions(functions or [])
+        
+        try:
+            # 设置请求头
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            # 设置请求体
+            payload = {
+                "model": self.model,
+                "messages": formatted_messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens or 512,
+                "stream": True,
+                "system": "你是一位专业的3D建模助手，可以通过自然语言指令控制Blender软件进行3D建模。"
+            }
+            
+            # 添加工具（函数）
+            if formatted_functions:
+                payload["tools"] = formatted_functions
+                payload["tool_choice"] = {"type": "auto"}
+            
+            # 发送流式请求
+            response = requests.post(self.api_url, headers=headers, json=payload, stream=True)
+            response.raise_for_status()  # 确保请求成功
+            
+            # 处理流式响应
+            accumulated_content = ""
+            function_call = None
+            
+            for line in response.iter_lines():
+                if line:
+                    # 删除"data: "前缀并解析JSON
+                    line_text = line.decode("utf-8")
+                    if line_text.startswith("data: "):
+                        json_str = line_text[6:]
+                        if json_str == "[DONE]":
+                            break
+                            
+                        try:
+                            chunk = json.loads(json_str)
+                            
+                            # 解析块内容
+                            if "choices" in chunk and len(chunk["choices"]) > 0:
+                                choice = chunk["choices"][0]
+                                delta = choice.get("delta", {})
+                                
+                                # 处理内容更新
+                                if "content" in delta and delta["content"]:
+                                    content_chunk = delta["content"]
+                                    accumulated_content += content_chunk
+                                    yield {"content": content_chunk, "function_call": None}
+                                
+                                # 处理函数调用
+                                if "tool_calls" in delta and delta["tool_calls"]:
+                                    tool_call = delta["tool_calls"][0]
+                                    
+                                    # 初始化函数调用信息
+                                    if function_call is None:
+                                        function_call = {
+                                            "name": tool_call.get("function", {}).get("name", ""),
+                                            "arguments": {}
+                                        }
+                                    
+                                    # 更新函数名称
+                                    if "function" in tool_call and "name" in tool_call["function"]:
+                                        function_call["name"] = tool_call["function"]["name"]
+                                    
+                                    # 更新函数参数
+                                    if "function" in tool_call and "arguments" in tool_call["function"]:
+                                        # 处理参数 - 可能是部分JSON字符串
+                                        args_str = tool_call["function"]["arguments"]
+                                        try:
+                                            # 尝试解析完整的JSON
+                                            args = json.loads(args_str)
+                                            function_call["arguments"] = args
+                                        except json.JSONDecodeError:
+                                            # 如果无法解析，则等待更多块
+                                            pass
+                                    
+                                    # 当函数调用完整时，返回
+                                    if function_call["name"] and hasattr(function_call, "arguments"):
+                                        yield {"content": None, "function_call": function_call}
+                        except json.JSONDecodeError:
+                            print(f"无法解析JSON: {json_str}")
+            
+            # 如果我们收到完整的函数调用，但尚未解析参数
+            if function_call and not function_call.get("arguments"):
+                # 尝试从收集的部分数据中构建完整的函数调用
+                try:
+                    # 这里可能需要添加额外的逻辑来处理部分函数调用
+                    yield {"content": None, "function_call": function_call}
+                except:
+                    pass
+        
+        except Exception as e:
+            # 打印请求体以便调试
+            if 'payload' in locals():
+                try:
+                    print("请求体:", json.dumps(payload, indent=2, ensure_ascii=False))
+                except:
+                    print("无法打印请求体")
+            
+            yield {
                 "content": f"与AIMLAPI通信出错: {str(e)}",
                 "function_call": None,
                 "error": str(e)

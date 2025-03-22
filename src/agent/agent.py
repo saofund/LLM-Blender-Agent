@@ -3,7 +3,7 @@ Blender Agent类
 """
 import json
 import logging
-from typing import Dict, List, Any, Optional, Callable, Union
+from typing import Dict, List, Any, Optional, Callable, Union, Generator, Iterator
 
 from ..llm.base import BaseLLM
 from ..blender.client import BlenderClient
@@ -349,6 +349,90 @@ class BlenderAgent:
             "content": content,
             "function_call": function_call
         }
+    
+    def chat_stream(self, user_message: str, functions: List[Dict[str, Any]] = None, 
+                    temperature: float = 0.7) -> Iterator[Dict[str, Any]]:
+        """
+        与LLM进行流式对话
+        
+        Args:
+            user_message: 用户消息
+            functions: 可用的函数列表，如果为None则使用所有函数
+            temperature: 温度参数
+            
+        Returns:
+            生成器，产生LLM的流式响应
+        """
+        # 使用指定的函数列表或默认的所有函数
+        functions_to_use = functions if functions is not None else self.functions
+        
+        # 添加用户消息到历史
+        self.add_message("user", user_message)
+        
+        # 检查LLM是否支持流式响应
+        if hasattr(self.llm, 'chat_stream'):
+            # 调用LLM的流式接口
+            response_stream = self.llm.chat_stream(
+                messages=self.messages,
+                functions=functions_to_use,
+                temperature=temperature
+            )
+            
+            # 累积响应内容
+            accumulated_content = ""
+            function_call = None
+            
+            # 处理流式响应
+            for chunk in response_stream:
+                content_chunk = chunk.get("content")
+                function_call_chunk = chunk.get("function_call")
+                
+                # 更新累积内容
+                if content_chunk:
+                    accumulated_content += content_chunk
+                
+                # 更新函数调用信息
+                if function_call_chunk:
+                    function_call = function_call_chunk
+                
+                # 返回本次响应块
+                yield chunk
+            
+            # 完整的响应内容
+            full_response = {
+                "content": accumulated_content,
+                "function_call": function_call
+            }
+            
+            # 将完整响应添加到历史
+            if full_response["content"]:
+                self.add_message("assistant", full_response["content"])
+            elif full_response["function_call"]:
+                self.add_message("assistant", f"我将帮你执行以下操作: {full_response['function_call']['name']}")
+        
+        else:
+            # 如果LLM不支持流式响应，则使用普通chat接口并模拟流式返回
+            response = self.llm.chat(
+                messages=self.messages,
+                functions=functions_to_use,
+                temperature=temperature
+            )
+            
+            content = response.get("content", "")
+            function_call = response.get("function_call")
+            
+            # 将响应添加到历史
+            if content:
+                self.add_message("assistant", content)
+                
+                # 模拟流式返回，一次性返回全部内容
+                yield {"content": content, "function_call": None}
+            
+            if function_call:
+                self.add_message("assistant", f"我将帮你执行以下操作: {function_call['name']}")
+                
+                # 返回函数调用信息
+                yield {"content": None, "function_call": function_call}
     
     def _execute_function(self, function_call: Dict[str, Any]) -> Dict[str, Any]:
         """

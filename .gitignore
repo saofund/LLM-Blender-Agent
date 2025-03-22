@@ -34,3 +34,6 @@ env/
 *.swp
 *.swo
 .DS_Store 
+
+# 渲染结果
+renders/

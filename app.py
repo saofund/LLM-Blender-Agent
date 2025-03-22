@@ -8,8 +8,9 @@ import json
 import logging
 import threading
 import time
+import base64
 import gradio as gr
-
+    
 from src.llm import LLMFactory
 from src.blender import BlenderClient
 from src.agent import BlenderAgent
@@ -60,7 +61,7 @@ def get_available_models(config):
         可用模型列表
     """
     if not config or "llm" not in config:
-        return ["claude"]
+        return ["aimlapi"]
     
     llm_config = config.get("llm", {})
     models = []
@@ -69,7 +70,7 @@ def get_available_models(config):
         if model_type != "default_model" and isinstance(model_config, dict):
             models.append(model_type)
     
-    return models or ["claude"]
+    return models or ["aimlapi"]
 
 def connect_to_blender(host, port, session_id):
     """
@@ -135,46 +136,192 @@ def initialize_agent(session_id, model_type, temperature):
         logger.error(f"初始化Agent时出错: {str(e)}")
         return f"初始化出错: {str(e)}"
 
-def process_message(message, session_id, history, temperature=0.7):
+def get_available_functions(session_id):
     """
-    处理用户消息
+    获取可用的函数列表
+    
+    Args:
+        session_id: 会话ID
+        
+    Returns:
+        函数名称列表
+    """
+    if session_id not in agents:
+        return []
+    
+    agent = agents[session_id]
+    return [func["name"] for func in agent.functions]
+
+def render_scene_and_return_image(session_id):
+    """
+    渲染当前场景并返回图像
+    
+    Args:
+        session_id: 会话ID
+        
+    Returns:
+        渲染后的图像路径或错误信息
+    """
+    if session_id not in blender_clients:
+        return None, "请先连接到Blender"
+    
+    try:
+        client = blender_clients[session_id]
+        result = client.render_scene(auto_save=True, save_dir="renders")
+        
+        if result.get("status") == "success":
+            # 获取保存的图像路径
+            saved_path = result.get("result", {}).get("saved_to")
+            if saved_path and os.path.exists(saved_path):
+                return saved_path, None
+            
+            # 如果没有保存路径但有图像数据，则从图像数据创建临时文件
+            image_data = result.get("result", {}).get("image_data")
+            if image_data:
+                import tempfile
+                temp_file = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+                image_bytes = base64.b64decode(image_data)
+                with open(temp_file.name, "wb") as f:
+                    f.write(image_bytes)
+                return temp_file.name, None
+            
+        return None, f"渲染失败: {result.get('message', '未知错误')}"
+    
+    except Exception as e:
+        logger.error(f"渲染场景时出错: {str(e)}")
+        return None, f"渲染出错: {str(e)}"
+
+def get_scene_info(session_id):
+    """
+    获取场景信息
+    
+    Args:
+        session_id: 会话ID
+        
+    Returns:
+        场景信息文本
+    """
+    if session_id not in blender_clients:
+        return "请先连接到Blender"
+    
+    try:
+        client = blender_clients[session_id]
+        result = client.get_scene_info()
+        
+        if result.get("status") == "success":
+            scene_data = result.get("result", {})
+            info_text = f"场景名称: {scene_data.get('name', '未知')}\n"
+            info_text += f"对象数量: {len(scene_data.get('objects', []))}\n\n"
+            
+            # 添加对象列表
+            objects = scene_data.get("objects", [])
+            if objects:
+                info_text += "对象列表:\n"
+                for obj in objects:
+                    obj_type = obj.get("type", "未知")
+                    obj_name = obj.get("name", "未知")
+                    info_text += f"- {obj_name} ({obj_type})\n"
+            
+            return info_text
+        else:
+            return f"获取场景信息失败: {result.get('message', '未知错误')}"
+    
+    except Exception as e:
+        logger.error(f"获取场景信息时出错: {str(e)}")
+        return f"获取场景信息出错: {str(e)}"
+
+def process_message_stream(message, session_id, history, selected_functions, auto_update_info, auto_render, temperature=0.7):
+    """
+    处理用户消息（流式响应）
     
     Args:
         message: 用户消息
         session_id: 会话ID
         history: 对话历史
+        selected_functions: 选择的函数列表
+        auto_update_info: 是否自动更新场景信息
+        auto_render: 是否自动渲染
         temperature: 温度参数
         
     Returns:
-        更新后的对话历史
+        生成器，产生更新后的对话历史、场景信息和渲染图像
     """
     try:
         # 检查Agent是否已初始化
         if session_id not in agents:
-            return history + [[message, "请先连接到Blender并初始化Agent"]]
+            history.append([message, "请先连接到Blender并初始化Agent"])
+            yield history, None, None
+            return
+
+        # 生成空白回复占位
+        history.append([message, ""])
+        yield history, None, None
         
-        # 处理消息
+        # 获取所选函数的子集
         agent = agents[session_id]
-        response = agent.chat(message, temperature=temperature)
+        if selected_functions and selected_functions != ["all"]:
+            # 过滤函数
+            allowed_functions = [func for func in agent.functions if func["name"] in selected_functions]
+        else:
+            # 使用全部函数
+            allowed_functions = agent.functions
         
-        content = response.get("content", "")
-        function_call = response.get("function_call")
+        # 流式处理消息
+        response_text = ""
+        full_response = {"content": "", "function_call": None}
         
-        # 构建响应文本
-        response_text = content or ""
+        # 获取流式响应
+        for chunk in agent.chat_stream(message, allowed_functions, temperature=temperature):
+            content_chunk = chunk.get("content") or ""
+            
+            if content_chunk:
+                response_text += content_chunk
+                history[-1][1] = response_text
+                yield history, None, None
+            
+            # 更新完整响应
+            if "content" in chunk and chunk["content"] is not None:
+                full_response["content"] = (full_response.get("content") or "") + (chunk.get("content") or "")
+            if "function_call" in chunk and chunk["function_call"] is not None:
+                full_response["function_call"] = chunk["function_call"]
         
-        if function_call:
+        # 如果有函数调用，执行并更新响应
+        if full_response.get("function_call"):
+            function_result = agent._execute_function(full_response["function_call"])
+            function_name = full_response["function_call"]["name"]
+            
+            # 添加函数执行结果到响应中
             if not response_text:
-                response_text = f"执行了操作: {function_call['name']}"
+                response_text = f"执行了操作: {function_name}"
+            
+            response_text += f"\n\n函数执行结果: {json.dumps(function_result, ensure_ascii=False)}"
+            history[-1][1] = response_text
+            yield history, None, None
         
-        if not response_text:
-            response_text = "[无响应]"
+        # 如果需要更新场景信息
+        scene_info = None
+        if auto_update_info:
+            scene_info = get_scene_info(session_id)
         
-        return history + [[message, response_text]]
+        # 如果需要自动渲染
+        render_image = None
+        render_error = None
+        if auto_render:
+            render_image, render_error = render_scene_and_return_image(session_id)
+            if render_error:
+                # 添加渲染错误信息到响应
+                response_text += f"\n\n[渲染失败: {render_error}]"
+                history[-1][1] = response_text
+        
+        yield history, scene_info, render_image
     
     except Exception as e:
         logger.error(f"处理消息时出错: {str(e)}")
-        return history + [[message, f"处理出错: {str(e)}"]]
+        if len(history) > 0 and len(history[-1]) > 1:
+            history[-1][1] += f"\n\n处理出错: {str(e)}"
+        else:
+            history.append([message, f"处理出错: {str(e)}"])
+        yield history, None, None
 
 def create_ui():
     """创建Gradio UI界面"""
@@ -191,17 +338,17 @@ def create_ui():
         
         with gr.Tab("连接设置"):
             with gr.Row():
-                with gr.Column():
+                with gr.Column(scale=1):
                     blender_host = gr.Textbox(label="Blender主机", value="localhost")
                     blender_port = gr.Number(label="Blender端口", value=9876)
                     connect_btn = gr.Button("连接到Blender")
                     connection_status = gr.Textbox(label="连接状态", interactive=False)
                 
-                with gr.Column():
+                with gr.Column(scale=1):
                     model_selector = gr.Dropdown(
                         label="选择LLM模型",
                         choices=available_models,
-                        value=available_models[0] if available_models else "claude"
+                        value="aimlapi" if "aimlapi" in available_models else available_models[0]
                     )
                     temperature = gr.Slider(
                         label="温度",
@@ -214,10 +361,31 @@ def create_ui():
                     initialization_status = gr.Textbox(label="初始化状态", interactive=False)
         
         with gr.Tab("对话"):
-            chatbot = gr.Chatbot(label="Blender对话")
-            message = gr.Textbox(label="消息", placeholder="输入指令...")
-            submit_btn = gr.Button("发送")
-            clear_btn = gr.Button("清空对话")
+            with gr.Row():
+                with gr.Column(scale=2):
+                    chatbot = gr.Chatbot(label="Blender对话", height=600)
+                    
+                    with gr.Row():
+                        message = gr.Textbox(label="消息", placeholder="输入指令...", scale=4)
+                        submit_btn = gr.Button("发送", scale=1)
+                    
+                    with gr.Accordion("高级设置", open=False):
+                        function_checkboxes = gr.CheckboxGroup(
+                            label="选择可用的函数",
+                            choices=["all"],
+                            value=["all"]
+                        )
+                        with gr.Row():
+                            auto_update_info = gr.Checkbox(label="自动获取场景信息", value=True)
+                            auto_render = gr.Checkbox(label="自动渲染", value=True)
+                    
+                    clear_btn = gr.Button("清空对话")
+                
+                with gr.Column(scale=1):
+                    scene_info = gr.Textbox(label="场景信息", interactive=False, lines=10)
+                    render_image = gr.Image(label="渲染结果", interactive=False)
+                    render_btn = gr.Button("手动渲染")
+                    update_info_btn = gr.Button("更新场景信息")
         
         # 连接按钮事件
         connect_btn.click(
@@ -227,17 +395,23 @@ def create_ui():
         )
         
         # 初始化按钮事件
+        def init_and_update_functions(model, temp):
+            result = initialize_agent(session_id, model, temp)
+            # 更新可用函数列表
+            funcs = ["all"] + get_available_functions(session_id)
+            return result, gr.update(choices=funcs, value=["all"])
+        
         initialize_btn.click(
-            fn=lambda model, temp: initialize_agent(session_id, model, temp),
+            fn=init_and_update_functions,
             inputs=[model_selector, temperature],
-            outputs=initialization_status
+            outputs=[initialization_status, function_checkboxes]
         )
         
         # 发送消息事件
         submit_btn.click(
-            fn=lambda msg, history, temp: process_message(msg, session_id, history, temp),
-            inputs=[message, chatbot, temperature],
-            outputs=[chatbot],
+            fn=process_message_stream,
+            inputs=[message, gr.State(session_id), chatbot, function_checkboxes, auto_update_info, auto_render, temperature],
+            outputs=[chatbot, scene_info, render_image],
             api_name="chat"
         ).then(
             fn=lambda: "",
@@ -247,16 +421,30 @@ def create_ui():
         
         # 清空对话事件
         clear_btn.click(
-            fn=lambda: [],
+            fn=lambda: [[], None, None],
             inputs=None,
-            outputs=chatbot
+            outputs=[chatbot, scene_info, render_image]
+        )
+        
+        # 手动渲染按钮
+        render_btn.click(
+            fn=lambda: render_scene_and_return_image(session_id)[0],
+            inputs=None,
+            outputs=render_image
+        )
+        
+        # 更新场景信息按钮
+        update_info_btn.click(
+            fn=lambda: get_scene_info(session_id),
+            inputs=None,
+            outputs=scene_info
         )
         
         # 也可以通过按Enter键发送消息
         message.submit(
-            fn=lambda msg, history, temp: process_message(msg, session_id, history, temp),
-            inputs=[message, chatbot, temperature],
-            outputs=[chatbot]
+            fn=process_message_stream,
+            inputs=[message, gr.State(session_id), chatbot, function_checkboxes, auto_update_info, auto_render, temperature],
+            outputs=[chatbot, scene_info, render_image]
         ).then(
             fn=lambda: "",
             inputs=None,
