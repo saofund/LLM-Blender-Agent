@@ -67,7 +67,7 @@ class BlenderClient:
                         if not data:
                             break
                         response_data += data
-                        print(f"收到数据: {len(data)} 字节")
+                        # print(f"收到数据: {len(data)} 字节")
                     except socket.timeout:
                         print("接收响应超时")
                         break
