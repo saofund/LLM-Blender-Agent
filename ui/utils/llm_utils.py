@@ -58,7 +58,7 @@ def get_available_models(config):
     
     return models or ["aimlapi"]
 
-def initialize_agent(session_id, model_type, temperature, blender_clients, agents):
+def initialize_agent(session_id, model_type, temperature):
     """
     初始化Agent
     
@@ -66,8 +66,6 @@ def initialize_agent(session_id, model_type, temperature, blender_clients, agent
         session_id: 会话ID
         model_type: 模型类型
         temperature: 温度参数
-        blender_clients: Blender客户端字典
-        agents: Agent字典
         
     Returns:
         初始化状态信息
@@ -123,9 +121,6 @@ def initialize_agent(session_id, model_type, temperature, blender_clients, agent
             # 存储Agent实例到全局字典
             globals.agents[session_id] = agent
             
-            # 同时更新传入的agents字典以兼容旧代码
-            agents[session_id] = agent
-            
             # 返回状态信息
             blender_status = "已连接" if blender_client is not None else "未连接"
             return f"初始化成功，使用模型: {model_type}, Blender状态: {blender_status}, 可用函数: {len(agent.functions)}个"
@@ -138,50 +133,56 @@ def initialize_agent(session_id, model_type, temperature, blender_clients, agent
         logger.error(f"初始化Agent时出错: {str(e)}")
         return f"初始化出错: {str(e)}"
 
-def get_available_functions(session_id, agents):
+def get_available_functions(session_id, agents=None):
     """
     获取可用的函数列表，包含函数名和描述
     
     Args:
         session_id: 会话ID
-        agents: Agent字典
+        agents: 已废弃，保留参数仅用于兼容性，实际使用全局变量
         
     Returns:
         函数信息列表 [(name, description), ...]
     """
-    if session_id not in agents:
+    # 导入全局变量
+    import ui.globals as globals
+    
+    if session_id not in globals.agents:
         return []
     
-    agent = agents[session_id]
+    agent = globals.agents[session_id]
     return [(func["name"], func.get("description", "无描述")) for func in agent.functions]
 
-def get_function_names(session_id, agents):
+def get_function_names(session_id, agents=None):
     """
     仅获取函数名列表
     
     Args:
         session_id: 会话ID
-        agents: Agent字典
+        agents: 已废弃，保留参数仅用于兼容性，实际使用全局变量
         
     Returns:
         函数名列表
     """
-    if session_id not in agents:
+    # 导入全局变量
+    import ui.globals as globals
+    
+    if session_id not in globals.agents:
         return []
     
-    agent = agents[session_id]
+    agent = globals.agents[session_id]
     return [func["name"] for func in agent.functions]
 
-def format_functions_for_display(session_id, agents):
+def format_functions_for_display(session_id, agents=None):
     """
     格式化函数列表，用于显示
     
     Args:
         session_id: 会话ID
-        agents: Agent字典
+        agents: 已废弃，保留参数仅用于兼容性，实际使用全局变量
         
     Returns:
         格式化后的函数列表，每个元素包含函数名和说明
     """
-    functions = get_available_functions(session_id, agents)
+    functions = get_available_functions(session_id)
     return [f"{name} - {desc}" for name, desc in functions] 

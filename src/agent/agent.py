@@ -477,4 +477,20 @@ class BlenderAgent:
             return {
                 "status": "error",
                 "message": f"执行函数时出错: {str(e)}"
-            } 
+            }
+
+    def update_blender_client(self, blender_client: BlenderClient):
+        """
+        更新Blender客户端引用
+        
+        在UI中先初始化Agent后连接Blender时，需要调用此方法更新Agent中的
+        Blender客户端引用，以便Agent能够与新连接的Blender进行交互。
+        
+        Args:
+            blender_client: 新的Blender客户端
+            
+        Returns:
+            None
+        """
+        self.blender_client = blender_client
+        logger.info("已更新Agent中的Blender客户端引用") 

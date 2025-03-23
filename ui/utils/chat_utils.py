@@ -25,8 +25,8 @@ def process_message_stream(message, session_id, history, selected_functions,
         auto_update_info: 是否自动更新场景信息
         auto_render: 是否自动渲染
         include_in_context: 是否将场景信息和渲染结果加入到LLM上下文
-        blender_clients: Blender客户端字典（已废弃，使用全局变量）
-        agents: Agent字典（已废弃，使用全局变量）
+        blender_clients: 已废弃，保留参数仅用于兼容性，实际使用全局变量
+        agents: 已废弃，保留参数仅用于兼容性，实际使用全局变量
         temperature: 温度参数
         
     Returns:

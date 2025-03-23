@@ -18,7 +18,7 @@ def connect_to_blender(host, port, blender_clients, session_id):
     Args:
         host: 主机地址
         port: 端口号
-        blender_clients: Blender客户端字典（已废弃，使用全局变量）
+        blender_clients: 已废弃，保留参数仅用于兼容性，实际使用全局变量
         session_id: 会话ID
         
     Returns:
@@ -45,8 +45,17 @@ def connect_to_blender(host, port, blender_clients, session_id):
         # 检查连接
         if client.is_connected:
             globals.blender_clients[session_id] = client
-            # 同时更新传入的blender_clients字典以兼容旧代码
-            blender_clients[session_id] = client
+            
+            # 如果Agent已经初始化，更新其Blender客户端
+            if session_id in globals.agents and globals.agents[session_id] is not None:
+                try:
+                    globals.agents[session_id].update_blender_client(client)
+                    return f"成功连接到Blender服务器: {host}:{port}，并已更新Agent中的Blender客户端"
+                except AttributeError:
+                    return f"成功连接到Blender服务器: {host}:{port}，但无法更新Agent（缺少update_blender_client方法）"
+                except Exception as e:
+                    return f"成功连接到Blender服务器: {host}:{port}，但更新Agent时出错: {str(e)}"
+            
             return f"成功连接到Blender服务器: {host}:{port}"
         else:
             return "连接失败，请检查Blender服务器是否启动，或检查地址和端口是否正确"
@@ -61,16 +70,19 @@ def render_scene_and_return_image(session_id, blender_clients):
     
     Args:
         session_id: 会话ID
-        blender_clients: 客户端字典
+        blender_clients: 已废弃，保留参数仅用于兼容性，实际使用全局变量
         
     Returns:
         渲染后的图像路径和渲染状态信息
     """
-    if session_id not in blender_clients:
+    # 导入全局变量
+    import ui.globals as globals
+    
+    if session_id not in globals.blender_clients:
         return None, "Blender未连接，无法进行渲染"
     
     try:
-        client = blender_clients[session_id]
+        client = globals.blender_clients[session_id]
         result = client.render_scene(auto_save=True, save_dir="renders")
         
         if result.get("status") == "success":
@@ -100,16 +112,19 @@ def get_scene_info(session_id, blender_clients):
     
     Args:
         session_id: 会话ID
-        blender_clients: 客户端字典
+        blender_clients: 已废弃，保留参数仅用于兼容性，实际使用全局变量
         
     Returns:
         场景信息文本和原始数据对象
     """
-    if session_id not in blender_clients:
+    # 导入全局变量
+    import ui.globals as globals
+    
+    if session_id not in globals.blender_clients:
         return "Blender未连接，无法获取场景信息", None
     
     try:
-        client = blender_clients[session_id]
+        client = globals.blender_clients[session_id]
         result = client.get_scene_info()
         
         if result.get("status") == "success":

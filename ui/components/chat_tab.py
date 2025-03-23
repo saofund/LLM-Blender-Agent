@@ -22,20 +22,16 @@
 7. 上下文管理 - 根据用户设置，将场景信息加入到LLM的上下文中
 
 全局状态：
-- _session_id - 当前会话ID
-- _blender_clients - Blender客户端字典的引用
-- _agents - Agent字典的引用
+- session_id - 当前会话ID
+- blender_clients - Blender客户端字典的引用
+- agents - Agent字典的引用
 """
 import gradio as gr
+import ui.globals as globals
 
 from ui.utils.chat_utils import process_message_stream
 from ui.utils.blender_utils import get_scene_info, render_scene_and_return_image, connect_to_blender
 from ui.utils.llm_utils import load_config, get_available_models
-
-# 全局变量，用于存储状态更新函数需要的上下文
-_session_id = None
-_blender_clients = None
-_agents = None
 
 # 创建全局状态更新函数
 def update_status_after_message(history, scene_info, render_image):
@@ -51,7 +47,7 @@ def update_status_after_message(history, scene_info, render_image):
         更新后的状态
     """
     # 确保全局变量已初始化
-    if None in (_session_id, _blender_clients, _agents):
+    if None in (globals.session_id, globals.blender_clients, globals.agents):
         # 如果全局变量未设置，直接返回无修改的输入
         return history, scene_info, render_image
     
@@ -62,7 +58,7 @@ def update_status_after_message(history, scene_info, render_image):
     # 不再需要更新状态指示，所有状态信息直接显示在对话框中
     return history, scene_info, render_image
 
-def create_chat_tab(session_id, blender_clients, agents):
+def create_chat_tab(session_id_param):
     """
     创建聊天界面
     
@@ -105,19 +101,11 @@ def create_chat_tab(session_id, blender_clients, agents):
        - update_info_btn: 手动更新场景信息的按钮
     
     Args:
-        session_id: 会话ID
-        blender_clients: Blender客户端字典
-        agents: Agent字典
+        session_id_param: 会话ID
         
     Returns:
         聊天界面组件，以及需要在其他地方使用的组件引用
     """
-    # 设置全局变量
-    global _session_id, _blender_clients, _agents
-    _session_id = session_id
-    _blender_clients = blender_clients
-    _agents = agents
-    
     # 从配置中获取可用模型
     config = load_config()
     available_models = get_available_models(config)
@@ -193,18 +181,18 @@ def create_chat_tab(session_id, blender_clients, agents):
     def reset_chat():
         # 准备初始系统消息
         try:
-            blender_connected = (session_id in blender_clients and 
-                             blender_clients[session_id] is not None and
-                             hasattr(blender_clients[session_id], 'is_connected') and
-                             blender_clients[session_id].is_connected)
+            blender_connected = (globals.session_id in globals.blender_clients and 
+                             globals.blender_clients[globals.session_id] is not None and
+                             hasattr(globals.blender_clients[globals.session_id], 'is_connected') and
+                             globals.blender_clients[globals.session_id].is_connected)
         except Exception:
             blender_connected = False
             
         try:
-            agent_initialized = (session_id in agents and 
-                             agents[session_id] is not None and
-                             hasattr(agents[session_id], 'functions') and
-                             len(agents[session_id].functions) > 0)
+            agent_initialized = (globals.session_id in globals.agents and 
+                             globals.agents[globals.session_id] is not None and
+                             hasattr(globals.agents[globals.session_id], 'functions') and
+                             len(globals.agents[globals.session_id].functions) > 0)
         except Exception:
             agent_initialized = False
         
@@ -244,21 +232,21 @@ def create_chat_tab(session_id, blender_clients, agents):
     
     # 手动渲染按钮
     render_btn.click(
-        fn=lambda: render_scene_and_return_image(session_id, blender_clients)[0],
+        fn=lambda: render_scene_and_return_image(globals.session_id, globals.blender_clients)[0],
         inputs=None,
         outputs=render_image
     )
     
     # 更新场景信息按钮
     update_info_btn.click(
-        fn=lambda: get_scene_info(session_id, blender_clients)[0],
+        fn=lambda: get_scene_info(globals.session_id, globals.blender_clients)[0],
         inputs=None,
         outputs=scene_info
     )
     
     # 连接按钮事件
     connect_btn.click(
-        fn=lambda host, port: connect_to_blender(host, port, blender_clients, session_id),
+        fn=lambda host, port: connect_to_blender(host, port, globals.blender_clients, globals.session_id),
         inputs=[blender_host, blender_port],
         outputs=connection_status
     )
@@ -267,10 +255,10 @@ def create_chat_tab(session_id, blender_clients, agents):
     def init_and_update_functions(model, temp):
         from ui.utils.llm_utils import initialize_agent, format_functions_for_display
         
-        result = initialize_agent(session_id, model, temp, blender_clients, agents)
+        result = initialize_agent(globals.session_id, model, temp)
         
         # 更新可用函数列表
-        formatted_functions = ["all"] + format_functions_for_display(session_id, agents)
+        formatted_functions = ["all"] + format_functions_for_display(globals.session_id, globals.agents)
         
         return result, gr.update(choices=formatted_functions, value=["all"])
     
@@ -333,7 +321,7 @@ def create_chat_tab(session_id, blender_clients, agents):
         "initialization_status": initialization_status
     }
 
-def setup_chat_handlers(chat_components, settings_components, session_id, blender_clients, agents, connection_indicator=None):
+def setup_chat_handlers(chat_components, settings_components, session_id_param, connection_indicator=None):
     """
     设置聊天界面的事件处理器
     
@@ -372,23 +360,22 @@ def setup_chat_handlers(chat_components, settings_components, session_id, blende
     Args:
         chat_components: 聊天界面组件
         settings_components: 设置界面组件（现在与chat_components相同）
-        session_id: 会话ID
-        blender_clients: Blender客户端字典
-        agents: Agent字典
+        session_id_param: 会话ID
+        connection_indicator: 连接状态指示器（可选）
     """
     # 发送消息事件
     chat_components["submit_btn"].click(
         fn=process_message_stream,
         inputs=[
             chat_components["message"], 
-            gr.State(session_id), 
+            gr.State(globals.session_id), 
             chat_components["chatbot"], 
             chat_components["function_checkboxes"], 
             chat_components["auto_update_info"], 
             chat_components["auto_render"],
             chat_components["include_in_context"],
-            gr.State(blender_clients),
-            gr.State(agents),
+            gr.State(globals.blender_clients),
+            gr.State(globals.agents),
             settings_components["temperature"]
         ],
         outputs=[
@@ -419,14 +406,14 @@ def setup_chat_handlers(chat_components, settings_components, session_id, blende
         fn=process_message_stream,
         inputs=[
             chat_components["message"], 
-            gr.State(session_id), 
+            gr.State(globals.session_id), 
             chat_components["chatbot"], 
             chat_components["function_checkboxes"], 
             chat_components["auto_update_info"], 
             chat_components["auto_render"],
             chat_components["include_in_context"],
-            gr.State(blender_clients),
-            gr.State(agents),
+            gr.State(globals.blender_clients),
+            gr.State(globals.agents),
             settings_components["temperature"]
         ],
         outputs=[
