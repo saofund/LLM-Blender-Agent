@@ -1,59 +1,66 @@
 #!/usr/bin/env python
 """
 LLM-Blender-Agent UI主入口
+
+UI组件说明：
+1. 聊天界面 - 与LLM交互的主要界面
+   - 对话框 - 显示用户与LLM的对话历史
+   - 输入框和发送按钮 - 用于发送消息
+   - Blender连接设置 - 设置Blender服务器的地址和端口
+   - 模型选择 - 选择要使用的LLM模型和温度参数
+   - 高级设置 - 配置可用函数、场景信息和渲染选项
+   - 场景信息 - 显示Blender当前场景信息
+   - 渲染结果 - 显示Blender的渲染结果
+
+数据流和交互逻辑：
+1. 用户通过连接设置连接到Blender服务器
+2. 用户选择LLM模型并初始化Agent
+3. 用户发送消息，系统调用LLM处理消息
+4. LLM通过函数调用与Blender交互，执行操作
+5. 操作结果和对话内容更新到UI上
 """
 import time
 import gradio as gr
 
-from ui.utils.llm_utils import load_config, get_available_models, initialize_agent, format_functions_for_display
-from ui.components.settings_tab import create_settings_tab
 from ui.components.chat_tab import create_chat_tab, setup_chat_handlers
+import ui.globals as globals
 
 def create_ui():
     """
     创建Gradio UI界面
     
+    主要组件和功能：
+    1. 聊天界面 - 由create_chat_tab函数创建，包含所有交互元素
+    2. 聊天处理器 - 由setup_chat_handlers设置，处理各种事件和消息
+    
+    数据管理：
+    - blender_clients: 存储Blender客户端连接
+    - agents: 存储LLM Agent实例
+    - session_id: 唯一会话标识符，用于关联客户端和Agent
+    
     Returns:
-        Gradio应用
+        Gradio应用实例
     """
-    # 全局变量
-    blender_clients = {}  # 用于存储不同连接的Blender客户端
-    agents = {}  # 用于存储不同会话的Agent
+    # 初始化全局变量
+    globals.blender_clients = {}  # 用于存储不同连接的Blender客户端
+    globals.agents = {}  # 用于存储不同会话的Agent
     
-    # 加载配置
-    config = load_config()
-    available_models = get_available_models(config)
-    
-    # 生成唯一会话ID
+    # 生成唯一会话ID，用于标识当前会话
     session_id = f"session_{int(time.time())}"
+    globals.session_id = session_id
     
     with gr.Blocks(title="LLM-Blender-Agent") as app:
+        # 标题和说明
         gr.Markdown("## LLM-Blender-Agent")
         gr.Markdown("使用各种LLM的Function Call功能操作Blender")
         
-        with gr.Tab("连接设置"):
-            settings_components = create_settings_tab(session_id, blender_clients, agents, available_models)
-        
-        with gr.Tab("对话"):
-            chat_components = create_chat_tab(session_id, blender_clients, agents)
-        
-        # 设置函数选择框的更新
-        def init_and_update_functions(model, temp):
-            result = initialize_agent(session_id, model, temp, blender_clients, agents)
-            
-            # 更新可用函数列表
-            formatted_functions = ["all"] + format_functions_for_display(session_id, agents)
-            
-            return result, gr.update(choices=formatted_functions, value=["all"])
-        
-        # 初始化按钮事件
-        settings_components["initialize_btn"].click(
-            fn=init_and_update_functions,
-            inputs=[settings_components["model_selector"], settings_components["temperature"]],
-            outputs=[settings_components["initialization_status"], chat_components["function_checkboxes"]]
-        )
+        # 创建聊天界面组件
+        # 返回的chat_components包含所有UI元素的引用，用于后续事件处理
+        chat_components = create_chat_tab(session_id, globals.blender_clients, globals.agents)
         
         # 设置聊天处理器
-        setup_chat_handlers(chat_components, settings_components, session_id, blender_clients, agents)
+        # 将chat_components同时作为聊天和设置组件传入
+        # 这里传入相同的组件是因为我们已经将所有功能集成到一个界面
+        setup_chat_handlers(chat_components, chat_components, session_id, globals.blender_clients, globals.agents)
     
     return app 

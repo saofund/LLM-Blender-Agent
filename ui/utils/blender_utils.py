@@ -13,30 +13,43 @@ logger = logging.getLogger(__name__)
 
 def connect_to_blender(host, port, blender_clients, session_id):
     """
-    连接到Blender MCP服务器
+    连接到Blender服务器
     
     Args:
-        host: 服务器主机名
-        port: 服务器端口号
-        blender_clients: 客户端字典
+        host: 主机地址
+        port: 端口号
+        blender_clients: Blender客户端字典（已废弃，使用全局变量）
         session_id: 会话ID
         
     Returns:
         连接状态信息
     """
     try:
+        # 导入全局变量
+        import ui.globals as globals
+        
+        # 尝试导入BlenderClient
         from src.blender import BlenderClient
-        blender_client = BlenderClient(host, port)
         
-        # 测试连接
-        scene_info = blender_client.get_scene_info()
-        if scene_info.get("status") == "error":
-            return f"连接失败: {scene_info.get('message')}"
+        # 清理之前的连接（如果有）
+        if session_id in globals.blender_clients and globals.blender_clients[session_id] is not None:
+            try:
+                # 尝试关闭之前的连接
+                globals.blender_clients[session_id].close()
+            except Exception:
+                pass
         
-        # 存储客户端
-        blender_clients[session_id] = blender_client
+        # 创建新的客户端连接
+        client = BlenderClient(host, int(port))
         
-        return f"连接成功，场景: {scene_info.get('result', {}).get('name', '未知')}"
+        # 检查连接
+        if client.is_connected:
+            globals.blender_clients[session_id] = client
+            # 同时更新传入的blender_clients字典以兼容旧代码
+            blender_clients[session_id] = client
+            return f"成功连接到Blender服务器: {host}:{port}"
+        else:
+            return "连接失败，请检查Blender服务器是否启动，或检查地址和端口是否正确"
     
     except Exception as e:
         logger.error(f"连接Blender时出错: {str(e)}")
@@ -54,7 +67,7 @@ def render_scene_and_return_image(session_id, blender_clients):
         渲染后的图像路径和渲染状态信息
     """
     if session_id not in blender_clients:
-        return None, "请先连接到Blender"
+        return None, "Blender未连接，无法进行渲染"
     
     try:
         client = blender_clients[session_id]
@@ -93,7 +106,7 @@ def get_scene_info(session_id, blender_clients):
         场景信息文本和原始数据对象
     """
     if session_id not in blender_clients:
-        return "请先连接到Blender", None
+        return "Blender未连接，无法获取场景信息", None
     
     try:
         client = blender_clients[session_id]

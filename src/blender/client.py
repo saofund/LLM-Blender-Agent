@@ -21,6 +21,21 @@ class BlenderClient:
         """
         self.host = host
         self.port = port
+        
+        # 测试连接并设置连接状态
+        try:
+            scene_info = self.get_scene_info()
+            self.is_connected = scene_info.get("status") != "error"
+        except Exception:
+            self.is_connected = False
+    
+    def close(self):
+        """
+        关闭客户端连接
+        """
+        # 由于使用的是无状态连接，实际上不需要特别的关闭逻辑
+        # 但为了保持接口一致性，保留这个方法
+        self.is_connected = False
     
     def send_command(self, command_type: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         """

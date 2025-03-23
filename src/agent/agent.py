@@ -448,6 +448,13 @@ class BlenderAgent:
             function_name = function_call["name"]
             arguments = function_call["arguments"]
             
+            # 检查Blender客户端是否存在
+            if self.blender_client is None:
+                return {
+                    "status": "error",
+                    "message": "Blender未连接，无法执行操作。请先在「连接设置」中连接到Blender。"
+                }
+            
             # 检查函数是否存在
             if not hasattr(self.blender_client, function_name):
                 return {

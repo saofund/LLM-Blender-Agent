@@ -73,25 +73,66 @@ def initialize_agent(session_id, model_type, temperature, blender_clients, agent
         初始化状态信息
     """
     try:
-        # 检查Blender客户端是否已连接
-        if session_id not in blender_clients:
-            return "请先连接到Blender"
+        # 导入全局变量
+        import ui.globals as globals
+        
+        # 清除之前的实例（如果有）
+        if session_id in globals.agents:
+            try:
+                # 尝试清理旧实例
+                del globals.agents[session_id]
+            except Exception as e:
+                logger.warning(f"清理旧Agent实例时出错: {str(e)}")
         
         # 加载配置
         config = load_config()
         if not config:
-            return "加载配置失败"
+            return "加载配置失败，请检查配置文件"
         
         # 创建LLM实例
-        from src.llm import LLMFactory
-        llm = LLMFactory.create_from_config_file(DEFAULT_CONFIG_PATH, model_type)
+        try:
+            from src.llm import LLMFactory
+            llm = LLMFactory.create_from_config_file(DEFAULT_CONFIG_PATH, model_type)
+            # 验证LLM实例
+            if not llm or not hasattr(llm, "chat"):
+                return f"模型 {model_type} 初始化失败: 无效的LLM实例"
+        except Exception as e:
+            logger.error(f"创建LLM实例时出错: {str(e)}")
+            return f"初始化模型 {model_type} 失败: {str(e)}"
         
-        # 创建Agent
-        from src.agent import BlenderAgent
-        agent = BlenderAgent(llm, blender_clients[session_id])
-        agents[session_id] = agent
-        
-        return f"初始化成功，使用模型: {model_type}"
+        # 创建Agent，如果已连接Blender，则使用Blender客户端，否则使用None
+        try:
+            from src.agent import BlenderAgent
+            
+            # 检查Blender连接
+            blender_client = None
+            if session_id in globals.blender_clients and globals.blender_clients[session_id] is not None:
+                if hasattr(globals.blender_clients[session_id], 'is_connected') and globals.blender_clients[session_id].is_connected:
+                    blender_client = globals.blender_clients[session_id]
+                else:
+                    blender_client = None
+                    logger.warning("Blender客户端存在但未连接")
+            
+            # 创建Agent实例
+            agent = BlenderAgent(llm, blender_client)
+            
+            # 验证Agent
+            if not agent or not hasattr(agent, "functions") or len(agent.functions) == 0:
+                return "Agent创建失败: 无效的Agent实例或没有可用函数"
+                
+            # 存储Agent实例到全局字典
+            globals.agents[session_id] = agent
+            
+            # 同时更新传入的agents字典以兼容旧代码
+            agents[session_id] = agent
+            
+            # 返回状态信息
+            blender_status = "已连接" if blender_client is not None else "未连接"
+            return f"初始化成功，使用模型: {model_type}, Blender状态: {blender_status}, 可用函数: {len(agent.functions)}个"
+            
+        except Exception as e:
+            logger.error(f"创建Agent实例时出错: {str(e)}")
+            return f"创建Agent时出错: {str(e)}"
     
     except Exception as e:
         logger.error(f"初始化Agent时出错: {str(e)}")
