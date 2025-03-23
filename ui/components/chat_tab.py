@@ -80,7 +80,6 @@ def create_chat_tab(session_id_param):
     
     3. 模型选择：
        - model_selector: LLM模型下拉选择框，选项从配置中加载
-       - temperature: 模型温度参数滑块，控制生成的随机性
        - initialize_btn: 初始化Agent的按钮
     
     4. 高级设置：
@@ -122,6 +121,12 @@ def create_chat_tab(session_id_param):
             
             with gr.Row():
                 message = gr.Textbox(label="消息", placeholder="输入指令...", scale=4)
+                model_selector = gr.Dropdown(
+                    label="选择LLM模型",
+                    choices=available_models,
+                    value="aimlapi" if "aimlapi" in available_models else available_models[0],
+                    scale=2
+                )
                 submit_btn = gr.Button("发送", scale=1)
             
             # 添加Blender连接和模型选择控件
@@ -131,20 +136,6 @@ def create_chat_tab(session_id_param):
                 connect_btn = gr.Button("连接Blender", scale=1)
             
             with gr.Row():
-                model_selector = gr.Dropdown(
-                    label="选择LLM模型",
-                    choices=available_models,
-                    value="aimlapi" if "aimlapi" in available_models else available_models[0],
-                    scale=3
-                )
-                temperature = gr.Slider(
-                    label="温度",
-                    minimum=0.0,
-                    maximum=1.0,
-                    value=0.7,
-                    step=0.1,
-                    scale=2
-                )
                 initialize_btn = gr.Button("初始化Agent", scale=1)
             
             with gr.Accordion("高级设置", open=False):
@@ -252,9 +243,11 @@ def create_chat_tab(session_id_param):
     )
     
     # 初始化按钮事件
-    def init_and_update_functions(model, temp):
+    def init_and_update_functions(model):
         from ui.utils.llm_utils import initialize_agent, format_functions_for_display
         
+        # 使用默认温度0.7
+        temp = 0.7
         result = initialize_agent(globals.session_id, model, temp)
         
         # 更新可用函数列表
@@ -264,7 +257,7 @@ def create_chat_tab(session_id_param):
     
     initialize_btn.click(
         fn=init_and_update_functions,
-        inputs=[model_selector, temperature],
+        inputs=[model_selector],
         outputs=[initialization_status, function_checkboxes]
     )
     
@@ -316,7 +309,6 @@ def create_chat_tab(session_id_param):
         "connect_btn": connect_btn, 
         "connection_status": connection_status,
         "model_selector": model_selector,
-        "temperature": temperature,
         "initialize_btn": initialize_btn,
         "initialization_status": initialization_status
     }
@@ -350,7 +342,6 @@ def setup_chat_handlers(chat_components, settings_components, session_id_param, 
        - include_in_context: 是否将场景信息加入LLM上下文
        - blender_clients: Blender客户端字典
        - agents: Agent字典
-       - temperature: 模型温度参数
     
     3. 返回值说明：
        - chatbot: 更新后的对话历史
@@ -376,7 +367,7 @@ def setup_chat_handlers(chat_components, settings_components, session_id_param, 
             chat_components["include_in_context"],
             gr.State(globals.blender_clients),
             gr.State(globals.agents),
-            settings_components["temperature"]
+            gr.State(0.7)  # 使用固定温度0.7
         ],
         outputs=[
             chat_components["chatbot"], 
@@ -414,7 +405,7 @@ def setup_chat_handlers(chat_components, settings_components, session_id_param, 
             chat_components["include_in_context"],
             gr.State(globals.blender_clients),
             gr.State(globals.agents),
-            settings_components["temperature"]
+            gr.State(0.7)  # 使用固定温度0.7
         ],
         outputs=[
             chat_components["chatbot"], 
