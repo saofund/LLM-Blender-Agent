@@ -109,34 +109,51 @@ def create_chat_tab(session_id_param):
     config = load_config()
     available_models = get_available_models(config)
     
+    # 步骤1和步骤2放在整行
+    with gr.Row():
+        with gr.Column(scale=1):
+            gr.Markdown("### 步骤1: 连接到Blender")
+            
+            # 主机和端口放在同一行
+            with gr.Row():
+                blender_host = gr.Textbox(label="Blender主机", value="localhost", scale=3)
+                blender_port = gr.Number(label="Blender端口", value=9876, scale=1)
+            
+            # 状态和按钮放在同一行，按钮在右侧
+            with gr.Row():
+                connection_status = gr.Textbox(label="连接状态", interactive=False, scale=3)
+                connect_btn = gr.Button("连接Blender", variant="primary", scale=1)
+        
+        with gr.Column(scale=1):
+            gr.Markdown("### 步骤2: 初始化LLM模型")
+            model_selector = gr.Dropdown(
+                label="选择LLM模型",
+                choices=available_models,
+                value="aimlapi" if "aimlapi" in available_models else available_models[0]
+            )
+            
+            # 状态和按钮放在同一行，按钮在右侧
+            with gr.Row():
+                initialization_status = gr.Textbox(label="初始化状态", interactive=False, scale=3)
+                initialize_btn = gr.Button("初始化Agent", variant="primary", scale=1)
+    
+    # 步骤3标题独占一行
+    gr.Markdown("### 步骤3: 开始与Blender对话")
+    
+    # 聊天界面部分
     with gr.Row():
         with gr.Column(scale=2):
             chatbot = gr.Chatbot(
                 label="Blender对话", 
-                height=600,
+                height=500,
                 value=[
-                    ["系统", "欢迎使用LLM-Blender-Agent！\n\n请先连接Blender并选择一个模型以开始对话。"]
+                    ["系统", "欢迎使用LLM-Blender-Agent！\n\n请先完成步骤1和步骤2，连接Blender并初始化模型，然后开始对话。"]
                 ]
             )
             
             with gr.Row():
                 message = gr.Textbox(label="消息", placeholder="输入指令...", scale=4)
-                model_selector = gr.Dropdown(
-                    label="选择LLM模型",
-                    choices=available_models,
-                    value="aimlapi" if "aimlapi" in available_models else available_models[0],
-                    scale=2
-                )
                 submit_btn = gr.Button("发送", scale=1)
-            
-            # 添加Blender连接和模型选择控件
-            with gr.Row():
-                blender_host = gr.Textbox(label="Blender主机", value="localhost", scale=2)
-                blender_port = gr.Number(label="Blender端口", value=9876, scale=1)
-                connect_btn = gr.Button("连接Blender", scale=1)
-            
-            with gr.Row():
-                initialize_btn = gr.Button("初始化Agent", scale=1)
             
             with gr.Accordion("高级设置", open=False):
                 function_checkboxes = gr.CheckboxGroup(
@@ -164,9 +181,6 @@ def create_chat_tab(session_id_param):
             with gr.Row():
                 render_btn = gr.Button("手动渲染")
                 update_info_btn = gr.Button("更新场景信息")
-            
-            connection_status = gr.Textbox(label="连接状态", interactive=False)
-            initialization_status = gr.Textbox(label="初始化状态", interactive=False)
     
     # 清空对话事件
     def reset_chat():
@@ -191,11 +205,11 @@ def create_chat_tab(session_id_param):
         if blender_connected and agent_initialized:
             system_message = "系统已初始化完成，可以开始对话！"
         elif blender_connected:
-            system_message = "Blender已连接，请初始化Agent以开始对话。"
+            system_message = "步骤1已完成，Blender已连接。请完成步骤2，初始化Agent以开始对话。"
         elif agent_initialized:
-            system_message = "Agent已初始化，但Blender未连接。请先连接Blender。"
+            system_message = "步骤2已完成，Agent已初始化。请先完成步骤1，连接Blender。"
         else:
-            system_message = "欢迎使用LLM-Blender-Agent！\n\n请先连接Blender并选择一个模型以开始对话。"
+            system_message = "欢迎使用LLM-Blender-Agent！\n\n请先完成步骤1和步骤2，连接Blender并初始化模型，然后开始对话。"
         
         return [
             [["系统", system_message]], 
