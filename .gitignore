@@ -37,3 +37,6 @@ env/
 
 # 渲染结果
 renders/
+
+# modelscope示例
+modelscope_offical_examples
