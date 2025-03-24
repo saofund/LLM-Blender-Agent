@@ -131,19 +131,19 @@ def process_message_stream(message, session_id, history, selected_functions,
                 full_response["content"] = (full_response.get("content") or "") + (chunk.get("content") or "")
             if "function_call" in chunk and chunk["function_call"] is not None:
                 full_response["function_call"] = chunk["function_call"]
-        
-        # 如果有函数调用，执行并更新响应
-        if full_response.get("function_call"):
-            function_result = agent._execute_function(full_response["function_call"])
-            function_name = full_response["function_call"]["name"]
             
-            # 添加函数执行结果到响应中
-            if not response_text:
-                response_text = f"执行了操作: {function_name}"
-            
-            response_text += f"\n\n函数执行结果: {json.dumps(function_result, ensure_ascii=False)}"
-            history[-1][1] = response_text
-            yield history, None, None
+            # 如果有函数执行结果，添加到响应中
+            if "function_result" in chunk and chunk["function_result"] is not None:
+                function_name = full_response["function_call"]["name"]
+                result = chunk["function_result"]
+                
+                # 添加函数执行结果到响应
+                if not response_text:
+                    response_text = f"执行了操作: {function_name}"
+                
+                response_text += f"\n\n函数执行结果: {json.dumps(result, ensure_ascii=False)}"
+                history[-1][1] = response_text
+                yield history, None, None
         
         # 如果需要更新场景信息并且已连接Blender
         scene_info = None

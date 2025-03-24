@@ -409,6 +409,20 @@ class BlenderAgent:
                 self.add_message("assistant", full_response["content"])
             elif full_response["function_call"]:
                 self.add_message("assistant", f"我将帮你执行以下操作: {full_response['function_call']['name']}")
+            
+            # 如果存在函数调用，执行它并将结果添加到历史
+            if function_call:
+                function_result = self._execute_function(function_call)
+                
+                # 将函数执行结果添加到历史
+                self.add_message("user", f"函数 {function_call['name']} 的执行结果: {json.dumps(function_result, ensure_ascii=False)}")
+                
+                # 返回一个包含函数执行结果的响应块
+                yield {
+                    "content": None, 
+                    "function_call": function_call,
+                    "function_result": function_result
+                }
         
         else:
             # 如果LLM不支持流式响应，则使用普通chat接口并模拟流式返回
@@ -433,6 +447,13 @@ class BlenderAgent:
                 
                 # 返回函数调用信息
                 yield {"content": None, "function_call": function_call}
+                
+                # 执行函数并返回结果
+                function_result = self._execute_function(function_call)
+                self.add_message("user", f"函数 {function_call['name']} 的执行结果: {json.dumps(function_result, ensure_ascii=False)}")
+                
+                # 添加函数执行结果到响应
+                yield {"content": None, "function_call": function_call, "function_result": function_result}
     
     def _execute_function(self, function_call: Dict[str, Any]) -> Dict[str, Any]:
         """
