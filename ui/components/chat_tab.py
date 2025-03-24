@@ -114,7 +114,7 @@ def create_chat_tab(session_id_param):
     # 步骤1和步骤2放在整行
     with gr.Row():
         with gr.Column(scale=1):
-            gr.Markdown("### 步骤1: 连接到Blender")
+            gr.Markdown("## 步骤1: 连接到Blender")
             
             # 主机和端口放在同一行
             with gr.Row():
@@ -143,7 +143,7 @@ def create_chat_tab(session_id_param):
             close_btn.click(lambda: Modal(visible=False), None, addon_help_modal)
         
         with gr.Column(scale=1):
-            gr.Markdown("### 步骤2: 初始化LLM模型")
+            gr.Markdown("## 步骤2: 初始化LLM模型")
             model_selector = gr.Dropdown(
                 label="选择LLM模型",
                 choices=available_models,
@@ -156,7 +156,7 @@ def create_chat_tab(session_id_param):
                 initialize_btn = gr.Button("初始化Agent", variant="primary", scale=1)
     
     # 步骤3标题独占一行
-    gr.Markdown("### 步骤3: 开始与Blender对话")
+    gr.Markdown("## 步骤3: 开始与Blender对话")
     
     # 聊天界面部分
     with gr.Row():
