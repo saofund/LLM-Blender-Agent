@@ -28,6 +28,8 @@
 """
 import gradio as gr
 import ui.globals as globals
+import os  # 添加os模块用于处理文件路径
+from gradio_modal import Modal  # 导入Modal组件
 
 from ui.utils.chat_utils import process_message_stream
 from ui.utils.blender_utils import get_scene_info, render_scene_and_return_image, connect_to_blender
@@ -122,7 +124,23 @@ def create_chat_tab(session_id_param):
             # 状态和按钮放在同一行，按钮在右侧
             with gr.Row():
                 connection_status = gr.Textbox(label="连接状态", interactive=False, scale=3)
-                connect_btn = gr.Button("连接Blender", variant="primary", scale=1)
+                
+                # 使用列来垂直排列两个按钮
+                with gr.Column(scale=1):
+                    connect_btn = gr.Button("连接Blender", variant="primary")
+                    help_btn = gr.Button("❓ 如何启动Blender 插件", variant="secondary",size="md")
+            
+            # 创建模态窗用于显示GIF，初始设置为不可见
+            with Modal(visible=False) as addon_help_modal:
+                gr.Markdown("## 如何启动Blender插件")
+                gif_path = os.path.join("asserts", "guide", "how_to_start_addon.gif")
+                gr.Image(value=gif_path, show_label=False)
+                close_btn = gr.Button("关闭")
+            
+            # 设置帮助按钮点击事件，打开模态窗
+            help_btn.click(lambda: Modal(visible=True), None, addon_help_modal)
+            # 设置关闭按钮点击事件，关闭模态窗
+            close_btn.click(lambda: Modal(visible=False), None, addon_help_modal)
         
         with gr.Column(scale=1):
             gr.Markdown("### 步骤2: 初始化LLM模型")
@@ -324,7 +342,9 @@ def create_chat_tab(session_id_param):
         "connection_status": connection_status,
         "model_selector": model_selector,
         "initialize_btn": initialize_btn,
-        "initialization_status": initialization_status
+        "initialization_status": initialization_status,
+        "help_btn": help_btn,  # 添加帮助按钮
+        "addon_help_modal": addon_help_modal  # 添加模态窗组件
     }
 
 def setup_chat_handlers(chat_components, settings_components, session_id_param, connection_indicator=None):
