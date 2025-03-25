@@ -6,7 +6,7 @@ This is a project that uses the Function Call capability of different Large Lang
 
 - Seamless switching between multiple LLM interfaces (Claude, Zhipu AI, DeepseekV3, AIMLAPI, etc.)
 - Unified Function Call processing framework for all LLM providers
-- Two interaction modes: Command-line interface and Gradio Web UI
+- Gradio Web UI interface for user-friendly interaction
 - Complete support for all features provided by the BlenderMCP plugin:
   - Basic scene operations (create, modify, delete objects)
   - Material and texture management
@@ -26,16 +26,6 @@ pip install -r requirements.txt
 Additionally, you need to install the BlenderMCP plugin in Blender and start the MCP server.
 
 ## Usage
-
-### Command-line Mode
-
-```bash
-# Start the command-line interface with a specific LLM
-python cli.py --model claude  # or zhipu, deepseek, aimlapi, etc.
-
-# View help
-python cli.py --help
-```
 
 ### Gradio Web UI Mode
 
