@@ -20,14 +20,14 @@ This is a project that uses the Function Call capability of different Large Lang
 - Multi-modal input support (text and images) depending on the LLM capabilities
 - Easily extensible architecture, supporting the addition of new LLM providers
 
-## 支持的模型
+## Supported Models
 
-- ![Claude](asserts/icons/claude.png) Claude
-- ![Zhipu](asserts/icons/zhipu.png) Zhipu AI (GLM-4)
-- ![Deepseek](asserts/icons/deepseek.png) DeepseekV3
-- ![AIMLAPI](asserts/icons/aimlapi.png) AIMLAPI
-- ![Doubao](asserts/icons/doubao.png) Doubao
-- ![Moonshot](asserts/icons/moonshot.png) Moonshot (Kimi)
+- <img src="asserts/icons/claude.png" width="30" height="30"> Claude
+- <img src="asserts/icons/zhipu.png" width="30" height="30"> Zhipu AI (GLM-4) (智谱AI)
+- <img src="asserts/icons/deepseek.png" width="30" height="30"> DeepseekV3 (深度求索)
+- <img src="asserts/icons/aimlapi.png" width="30" height="30"> AIMLAPI
+- <img src="asserts/icons/doubao.png" width="30" height="30"> Doubao (豆包)
+- <img src="asserts/icons/moonshot.png" width="30" height="30"> Moonshot (Kimi) (月之暗面)
 
 ## Installation Requirements
 
