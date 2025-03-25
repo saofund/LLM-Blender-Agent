@@ -25,7 +25,7 @@ This is a project that uses the Function Call capability of different Large Lang
 - <img src="asserts/icons/claude.png" width="30" height="30"> Claude
 - <img src="asserts/icons/zhipu.png" width="30" height="30"> Zhipu AI (GLM-4) (智谱AI)
 - <img src="asserts/icons/deepseek.png" width="30" height="30"> DeepseekV3 (深度求索)
-- <img src="asserts/icons/aimlapi.png" width="30" height="30"> AIMLAPI
+- <img src="asserts/icons/aimlapi.png" width="30" height="30"> AIMLAPI (我能找到的最便宜的Claude api代理，如不能购买claude api)
 - <img src="asserts/icons/doubao.png" width="30" height="30"> Doubao (豆包)
 - <img src="asserts/icons/moonshot.png" width="30" height="30"> Moonshot (Kimi) (月之暗面)
 
