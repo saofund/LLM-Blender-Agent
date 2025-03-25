@@ -27,7 +27,7 @@ UI组件说明：
 import time
 import gradio as gr
 
-from ui.components.chat_tab import create_chat_tab, setup_chat_handlers
+from ui.components.chat_tab import create_chat_tab
 import ui.globals as globals
 
 def create_ui():
@@ -62,10 +62,6 @@ def create_ui():
         # 创建聊天界面组件
         # 返回的chat_components包含所有UI元素的引用，用于后续事件处理
         chat_components = create_chat_tab(session_id)
-        
-        # 设置聊天处理器
-        # 将chat_components同时作为聊天和设置组件传入
-        # 这里传入相同的组件是因为我们已经将所有功能集成到一个界面
-        setup_chat_handlers(chat_components, chat_components, session_id)
+      
     
     return app 

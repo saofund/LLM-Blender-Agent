@@ -19,33 +19,6 @@ class BaseLLM(ABC):
         self.api_key = api_key
         self.model = model
         self.kwargs = kwargs
-        
-    @abstractmethod
-    def chat(self, messages: List[Dict[str, Any]], functions: List[Dict[str, Any]] = None,
-            temperature: float = 0.7, max_tokens: Optional[int] = None) -> Dict[str, Any]:
-        """
-        与LLM进行对话，支持function calling和图片输入
-        
-        Args:
-            messages: 对话历史消息列表，支持纯文本和多模态内容
-                格式：
-                - 纯文本消息: {"role": "user", "content": "文本内容"}
-                - 带图片消息: {"role": "user", "content": [
-                    {"type": "text", "text": "文本内容"},
-                    {"type": "image", "image_url": {"url": "图片URL"}}
-                  ]}
-                - 或者: {"role": "user", "content": [
-                    {"type": "text", "text": "文本内容"},
-                    {"type": "image", "image_data": {"data": "BASE64编码的图片", "media_type": "image/jpeg"}}
-                  ]}
-            functions: 函数定义列表
-            temperature: 温度参数，控制随机性
-            max_tokens: 最大生成token数
-            
-        Returns:
-            LLM响应结果
-        """
-        pass
     
     @abstractmethod
     def format_messages(self, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

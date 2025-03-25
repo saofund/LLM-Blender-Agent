@@ -153,75 +153,28 @@ class BlenderAgent:
             }
         ]
     
-    def add_message(self, role: str, content: str):
+    def add_message(self, role: str, content: Union[str, List[Dict[str, Any]]]):
         """
         添加消息到对话历史
         
         Args:
             role: 角色（user或assistant）
-            content: 消息内容
+            content: 消息内容，可以是字符串或包含多种内容类型（如文本、图像）的列表
+                     格式遵循OpenAI标准，例如：
+                     [
+                         {"type": "text", "text": "文本内容"},
+                         {"type": "image_url", "image_url": {"url": "图片URL"}}
+                     ]
         """
         self.messages.append({"role": role, "content": content})
     
-    def chat(self, user_message: str, temperature: float = 0.7) -> Dict[str, Any]:
-        """
-        与LLM进行对话
-        
-        Args:
-            user_message: 用户消息
-            temperature: 温度参数
-            
-        Returns:
-            LLM响应
-        """
-        # 添加用户消息到历史
-        self.add_message("user", user_message)
-        
-        # 调用LLM
-        response = self.llm.chat(
-            messages=self.messages,
-            functions=self.functions,
-            temperature=temperature
-        )
-        
-        # 处理响应
-        content = response.get("content")
-        function_call = response.get("function_call")
-        
-        if function_call:
-            # 执行函数调用
-            function_result = self._execute_function(function_call)
-            
-            # 将函数调用和结果添加到历史
-            self.add_message("assistant", f"我将帮你执行以下操作: {function_call['name']}")
-            self.add_message("user", f"函数 {function_call['name']} 的执行结果: {json.dumps(function_result, ensure_ascii=False)}")
-            
-            # 再次调用LLM，让它解释结果
-            response = self.llm.chat(
-                messages=self.messages,
-                functions=self.functions,
-                temperature=temperature
-            )
-            
-            # 更新响应内容
-            content = response.get("content")
-        
-        # 将助手响应添加到历史
-        if content:
-            self.add_message("assistant", content)
-        
-        return {
-            "content": content,
-            "function_call": function_call
-        }
-    
-    def chat_stream(self, user_message: str, functions: List[Dict[str, Any]] = None, 
+    def chat_stream(self, user_message: Union[str, List[Dict[str, Any]]], functions: List[Dict[str, Any]] = None, 
                     temperature: float = 0.7) -> Iterator[Dict[str, Any]]:
         """
         与LLM进行流式对话
         
         Args:
-            user_message: 用户消息
+            user_message: 用户消息，可以是字符串或包含多模态内容的列表
             functions: 可用的函数列表，如果为None则使用所有函数
             temperature: 温度参数
             

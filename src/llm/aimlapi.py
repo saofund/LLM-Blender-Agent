@@ -291,6 +291,30 @@ class AIMLAPI_LLM(BaseLLM):
                                         "data": data
                                     }
                                 })
+                    # 新增: 兼容OpenAI格式的image_url类型
+                    elif item.get("type") == "image_url":
+                        # 处理image_url格式
+                        if "image_url" in item and "url" in item["image_url"]:
+                            image_path = item["image_url"]["url"]
+                            
+                            # 检查是否为本地文件路径
+                            if os.path.exists(image_path):
+                                try:
+                                    # 读取并编码图片
+                                    image_data = self.encode_image(image_path)
+                                    media_type = self.get_media_type(image_path)
+                                    
+                                    formatted_content.append({
+                                        "type": "image",
+                                        "source": {
+                                            "type": "base64",
+                                            "media_type": media_type,
+                                            "data": image_data
+                                        }
+                                    })
+                                except Exception as e:
+                                    print(f"处理本地图片失败: {str(e)}")
+                            # 如果不是本地文件，则可能是URL (不处理远程URL，除非有特殊需求)
                 
                 # 添加消息，只有在有内容时才添加
                 if formatted_content:
@@ -390,65 +414,6 @@ class AIMLAPI_LLM(BaseLLM):
             result["error"] = str(e)
         
         return result
-    
-    def image_chat(self, text: str, images: List[Union[str, Dict[str, str]]], 
-                  temperature: float = 0.7, max_tokens: Optional[int] = None) -> Dict[str, Any]:
-        """
-        简化的图片对话方法，仅支持本地图片输入
-        
-        Args:
-            text: 提问的文本
-            images: 图片列表，可以是以下格式：
-                - 图片路径字符串列表
-                - 字典列表，支持"path"键
-            temperature: 温度参数
-            max_tokens: 最大生成token数
-            
-        Returns:
-            AIMLAPI响应结果
-        """
-        content = [{"type": "text", "text": text}]
-        
-        # 处理图片
-        for img in images:
-            # 图片是字符串，应该是本地路径
-            if isinstance(img, str):
-                # 本地路径
-                if os.path.exists(img):
-                    image_base64 = self.encode_image(img)
-                    media_type = self.get_media_type(img)
-                    content.append({
-                        "type": "image", 
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_base64
-                        }
-                    })
-                else:
-                    raise FileNotFoundError(f"图片文件不存在: {img}")
-            
-            # 图片是字典，可能包含path
-            elif isinstance(img, dict) and "path" in img:
-                if os.path.exists(img["path"]):
-                    image_base64 = self.encode_image(img["path"])
-                    media_type = self.get_media_type(img["path"])
-                    content.append({
-                        "type": "image", 
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": image_base64
-                        }
-                    })
-                else:
-                    raise FileNotFoundError(f"图片文件不存在: {img['path']}")
-        
-        # 构建消息
-        messages = [{"role": "user", "content": content}]
-        
-        # 调用chat方法
-        return self.chat(messages=messages, temperature=temperature, max_tokens=max_tokens)
     
     @staticmethod
     def encode_image(image_path: str) -> str:
@@ -569,13 +534,6 @@ if __name__ == "__main__":
             image_base64_response = llm.chat(messages=image_base64_messages)
             print("\n原始方式本地图片响应:", image_base64_response.get("content"))
             
-            # 简化方式测试
-            print("\n简化方式测试本地图片输入...")
-            simple_local_response = llm.image_chat(
-                text="这张图片是什么，请详细描述一下。",
-                images=[test_image_path]
-            )
-            print("\n简化方式本地图片响应:", simple_local_response.get("content"))
         else:
             print(f"本地图片测试跳过: 找不到测试图片，路径: {test_image_path}")
             print("请确认asserts目录中有test_image.jpg文件")
