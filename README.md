@@ -20,6 +20,15 @@ This is a project that uses the Function Call capability of different Large Lang
 - Multi-modal input support (text and images) depending on the LLM capabilities
 - Easily extensible architecture, supporting the addition of new LLM providers
 
+## 支持的模型
+
+- ![Claude](asserts/icons/claude.png) Claude
+- ![Zhipu](asserts/icons/zhipu.png) Zhipu AI (GLM-4)
+- ![Deepseek](asserts/icons/deepseek.png) DeepseekV3
+- ![AIMLAPI](asserts/icons/aimlapi.png) AIMLAPI
+- ![Doubao](asserts/icons/doubao.png) Doubao
+- ![Moonshot](asserts/icons/moonshot.png) Moonshot (Kimi)
+
 ## Installation Requirements
 
 ```bash
