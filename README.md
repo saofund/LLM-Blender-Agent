@@ -1,6 +1,10 @@
 # LLM-Blender-Agent
 
+![Banner](asserts/banner1.jpg)
+
 This is a project that uses the Function Call capability of different Large Language Models (LLMs) to operate Blender. The project allows users to control Blender for 3D modeling using natural language through various LLM interfaces (such as Claude, Zhipu AI, DeepseekV3, AIMLAPI, etc.).
+
+![Gradio Web UI Demo](asserts/ui2.gif)
 
 ## Features
 
@@ -35,8 +39,6 @@ python app.py
 ```
 
 Then visit http://localhost:7860 in your browser
-
-![Gradio Web UI Screenshot](asserts/ui1.png)
 
 The Gradio Web UI offers the following features:
 - Connection settings for Blender MCP
