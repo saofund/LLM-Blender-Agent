@@ -165,7 +165,7 @@ class ModelWorker:
         self.pipeline.enable_flashvdm(mc_algo='mc')
         self.pipeline_t2i = HunyuanDiTPipeline(
             # 'Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled',
-            '/data2/wuyitao/hunyuan_pretrain_weights/HunyuanDiT-v1.2-Diffusers-Distilled',
+            '/weight/hunyuan_pretrain_weights/HunyuanDiT-v1.2-Diffusers-Distilled',  # TODO 请注意这里就是使用的模型，可修改！
             device=device
         )
         if enable_tex:
@@ -302,8 +302,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", type=str, default="0.0.0.0")
     parser.add_argument("--port", type=int, default="8081")
-    parser.add_argument("--model_path", type=str, default='/data2/wuyitao/Hunyuan3D-2/weight')  # TODO 模型路径的【父路径】，模型选择在ModelWorker类中定义！!
-    parser.add_argument("--tex_model_path", type=str, default='/data2/wuyitao/Hunyuan3D-2/weight')  # TODO 纹理模型路径的【父路径】，请注意！
+    parser.add_argument("--model_path", type=str, default='/Hunyuan3D-2/weight')  # TODO 模型路径的【父路径】，模型选择在ModelWorker类中定义！!
+    parser.add_argument("--tex_model_path", type=str, default='/Hunyuan3D-2/weight')  # TODO 纹理模型路径的【父路径】，请注意！
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--limit-model-concurrency", type=int, default=5)
     # parser.add_argument('--enable_tex', action='store_true')
