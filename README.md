@@ -43,6 +43,17 @@ pip install -r requirements.txt
 
 Additionally, you need to install the BlenderMCP plugin in Blender and start the MCP server.
 
+### Installing the Blender Plugin
+
+![Installing Blender Plugin](asserts/guide/how_to_start_addon.gif)
+
+1. Download the latest addon.py file
+2. Open Blender and go to Edit > Preferences
+3. Select Add-ons tab and click "Install..."
+4. Browse to and select the addon.py file
+5. Enable the plugin by checking the box next to "Interface: LLM Blender Agent"
+6. The plugin should now appear in the sidebar (press N to show sidebar if hidden)
+
 ## Usage
 
 ### Gradio Web UI Mode
