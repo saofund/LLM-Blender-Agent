@@ -10,17 +10,76 @@ import traceback
 import os
 import shutil
 import base64
-from bpy.props import StringProperty, IntProperty, BoolProperty, EnumProperty
+from bpy.props import StringProperty, IntProperty, BoolProperty, EnumProperty, FloatProperty
 
 bl_info = {
-    "name": "Blender MCP",
-    "author": "BlenderMCP",
-    "version": (0, 2),
+    "name": "LLM Blender Agent",
+    "author": "SAOFUND",
+    "version": (0, 3),
     "blender": (3, 0, 0),
-    "location": "View3D > Sidebar > BlenderMCP",
-    "description": "Connect Blender to Claude via MCP",
+    "location": "View3D > Sidebar > BlenderMCP / Hunyuan3D-2",
+    "description": "Connect Blender to Claude via MCP and generate/texture 3D models with Hunyuan3D-2",
     "category": "Interface",
 }
+
+# Hunyuan3D Properties
+class Hunyuan3DProperties(bpy.types.PropertyGroup):
+    prompt: StringProperty(
+        name="Text Prompt",
+        description="Describe what you want to generate",
+        default=""
+    )
+    api_url: StringProperty(
+        name="API URL",
+        description="URL of the Text-to-3D API service",
+        default="http://192.168.111.3:8081"
+    )
+    is_processing: BoolProperty(
+        name="Processing",
+        default=False
+    )
+    job_id: StringProperty(
+        name="Job ID",
+        default=""
+    )
+    status_message: StringProperty(
+        name="Status Message",
+        default=""
+    )
+    # 添加图片路径属性
+    image_path: StringProperty(
+        name="Image",
+        description="Select an image to upload",
+        subtype='FILE_PATH'
+    )
+    # 修改后的 octree_resolution 属性
+    octree_resolution: IntProperty(
+        name="Octree Resolution",
+        description="Octree resolution for the 3D generation",
+        default=256,
+        min=128,
+        max=512,
+    )
+    num_inference_steps: IntProperty(
+        name="Number of Inference Steps",
+        description="Number of inference steps for the 3D generation",
+        default=20,
+        min=20,
+        max=50
+    )
+    guidance_scale: FloatProperty(
+        name="Guidance Scale",
+        description="Guidance scale for the 3D generation",
+        default=5.5,
+        min=1.0,
+        max=10.0
+    )
+    # 添加 texture 属性
+    texture: BoolProperty(
+        name="Generate Texture",
+        description="Whether to generate texture for the 3D model",
+        default=False
+    )
 
 class BlenderMCPServer:
     def __init__(self, host='localhost', port=9876):
@@ -204,6 +263,7 @@ class BlenderMCPServer:
             "execute_code": self.execute_code,
             "set_material": self.set_material,
             "render_scene": self.render_scene,
+            "generate_3d_model": self.generate_3d_model,
         }
         
         handler = handlers.get(cmd_type)
@@ -594,6 +654,160 @@ class BlenderMCPServer:
         
         return result
 
+    def generate_3d_model(self, text=None, image_data=None, object_name=None, 
+                         api_url="http://192.168.111.3:8081", octree_resolution=256, 
+                         num_inference_steps=20, guidance_scale=5.5, texture=False):
+        """Generate 3D model using Hunyuan3D API
+        
+        Args:
+            text (str): Text prompt for generation
+            image_data (str): Base64 encoded image data
+            object_name (str): Name of object to apply texture to (optional)
+            api_url (str): Hunyuan3D API URL
+            octree_resolution (int): Resolution for generation
+            num_inference_steps (int): Number of steps
+            guidance_scale (float): Guidance scale
+            texture (bool): Generate with texture
+            
+        Returns:
+            dict: Result information
+        """
+        try:
+            # 检查参数
+            if not text and not image_data:
+                raise ValueError("必须提供文本提示或图像数据")
+            
+            # 准备API请求
+            base_url = api_url.rstrip('/')
+            request_data = {
+                "octree_resolution": octree_resolution,
+                "num_inference_steps": num_inference_steps,
+                "guidance_scale": guidance_scale,
+                "texture": texture
+            }
+            
+            # 添加文本或图像数据
+            if text:
+                request_data["text"] = text
+            
+            if image_data:
+                request_data["image"] = image_data
+            
+            # 处理选定的对象（如果有）
+            selected_mesh = None
+            selected_mesh_base64 = None
+            
+            if object_name:
+                selected_mesh = bpy.data.objects.get(object_name)
+                if not selected_mesh or selected_mesh.type != 'MESH':
+                    raise ValueError(f"对象 '{object_name}' 不存在或不是网格对象")
+                
+                # 导出对象为GLB
+                temp_glb_file = tempfile.NamedTemporaryFile(delete=False, suffix=".glb")
+                temp_glb_file.close()
+                
+                # 保存当前选择
+                current_selection = bpy.context.selected_objects.copy()
+                active_obj = bpy.context.view_layer.objects.active
+                
+                # 取消全部选择并选中目标对象
+                bpy.ops.object.select_all(action='DESELECT')
+                selected_mesh.select_set(True)
+                bpy.context.view_layer.objects.active = selected_mesh
+                
+                # 导出
+                bpy.ops.export_scene.gltf(filepath=temp_glb_file.name, 
+                                          use_selection=True, 
+                                          export_format='GLB')
+                
+                # 恢复选择
+                bpy.ops.object.select_all(action='DESELECT')
+                for obj in current_selection:
+                    obj.select_set(True)
+                if active_obj:
+                    bpy.context.view_layer.objects.active = active_obj
+                
+                # 读取并编码GLB数据
+                with open(temp_glb_file.name, "rb") as file:
+                    mesh_data = file.read()
+                selected_mesh_base64 = base64.b64encode(mesh_data).decode()
+                os.unlink(temp_glb_file.name)
+                
+                # 添加到请求
+                request_data["mesh"] = selected_mesh_base64
+            
+            # 发送请求
+            print(f"发送Hunyuan3D请求: {base_url}/generate")
+            response = requests.post(
+                f"{base_url}/generate",
+                json=request_data,
+            )
+            
+            # 检查响应
+            if response.status_code != 200:
+                raise ValueError(f"生成失败: {response.text}")
+            
+            # 保存为临时GLB文件
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".glb")
+            temp_file.write(response.content)
+            temp_file.close()
+            
+            # 在主线程中导入模型
+            def import_handler():
+                # 导入GLB
+                bpy.ops.import_scene.gltf(filepath=temp_file.name)
+                os.unlink(temp_file.name)
+                
+                # 获取新导入的对象
+                new_obj = None
+                for obj in bpy.context.selected_objects:
+                    if obj.type == 'MESH':
+                        new_obj = obj
+                        break
+                
+                # 应用位置、旋转和缩放
+                if new_obj and selected_mesh and texture:
+                    new_obj.location = selected_mesh.location
+                    new_obj.rotation_euler = selected_mesh.rotation_euler
+                    new_obj.scale = selected_mesh.scale
+                    
+                    # 隐藏原始对象
+                    selected_mesh.hide_set(True)
+                    selected_mesh.hide_render = True
+                
+                return None
+            
+            # 注册导入操作
+            bpy.app.timers.register(import_handler)
+            
+            # 返回成功
+            result = {
+                "status": "generating",
+                "message": "3D模型生成中...",
+                "params": {
+                    "text": text,
+                    "has_image": image_data is not None,
+                    "object_name": object_name,
+                    "texture": texture,
+                    "octree_resolution": octree_resolution
+                }
+            }
+            
+            return result
+            
+        except Exception as e:
+            print(f"生成3D模型错误: {str(e)}")
+            traceback.print_exc()
+            return {
+                "status": "error",
+                "message": str(e),
+                "params": {
+                    "text": text,
+                    "has_image": image_data is not None,
+                    "object_name": object_name
+                }
+            }
+
 # Blender UI Panel
 class BLENDERMCP_PT_Panel(bpy.types.Panel):
     bl_label = "Blender MCP"
@@ -606,13 +820,20 @@ class BLENDERMCP_PT_Panel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         
-        layout.prop(scene, "blendermcp_port")
+        # MCP 服务器部分
+        box = layout.box()
+        row = box.row()
+        row.label(text="MCP 服务器")
+        
+        box.prop(scene, "blendermcp_port")
         
         if not scene.blendermcp_server_running:
-            layout.operator("blendermcp.start_server", text="Start MCP Server")
+            box.operator("blendermcp.start_server", text="启动MCP服务器")
         else:
-            layout.operator("blendermcp.stop_server", text="Stop MCP Server")
-            layout.label(text=f"Running on port {scene.blendermcp_port}")
+            box.operator("blendermcp.stop_server", text="停止MCP服务器")
+            box.label(text=f"运行于端口 {scene.blendermcp_port}")
+            
+        # Hunyuan3D 折叠部分会作为子面板显示
 
 # Operator to start the server
 class BLENDERMCP_OT_StartServer(bpy.types.Operator):
@@ -651,6 +872,243 @@ class BLENDERMCP_OT_StopServer(bpy.types.Operator):
         
         return {'FINISHED'}
 
+# Hunyuan3D Operator and Panel
+class Hunyuan3DOperator(bpy.types.Operator):
+    bl_idname = "object.generate_3d"
+    bl_label = "Generate 3D Model"
+    bl_description = "Generate a 3D model from text description, an image or a selected mesh"
+
+    job_id = ''
+    prompt = ""
+    api_url = ""
+    image_path = ""
+    octree_resolution = 256
+    num_inference_steps = 20
+    guidance_scale = 5.5
+    texture = False  # 新增属性
+    selected_mesh_base64 = ""
+    selected_mesh = None  # 新增属性，用于存储选中的 mesh
+
+    thread = None
+    task_finished = False
+
+    def modal(self, context, event):
+        if event.type in {'RIGHTMOUSE', 'ESC'}:
+            return {'CANCELLED'}
+
+        if self.task_finished:
+            print("Threaded task completed")
+            self.task_finished = False
+            props = context.scene.gen_3d_props
+            props.is_processing = False
+
+        return {'PASS_THROUGH'}
+
+    def invoke(self, context, event):
+        # 启动线程
+        props = context.scene.gen_3d_props
+        self.prompt = props.prompt
+        self.api_url = props.api_url
+        self.image_path = props.image_path
+        self.octree_resolution = props.octree_resolution
+        self.num_inference_steps = props.num_inference_steps
+        self.guidance_scale = props.guidance_scale
+        self.texture = props.texture  # 获取 texture 属性的值
+
+        if self.prompt == "" and self.image_path == "":
+            self.report({'WARNING'}, "Please enter some text or select an image first.")
+            return {'FINISHED'}
+
+        # 保存选中的 mesh 对象引用
+        for obj in context.selected_objects:
+            if obj.type == 'MESH':
+                self.selected_mesh = obj
+                break
+
+        if self.selected_mesh:
+            temp_glb_file = tempfile.NamedTemporaryFile(delete=False, suffix=".glb")
+            temp_glb_file.close()
+            bpy.ops.export_scene.gltf(filepath=temp_glb_file.name, use_selection=True)
+            with open(temp_glb_file.name, "rb") as file:
+                mesh_data = file.read()
+            mesh_b64_str = base64.b64encode(mesh_data).decode()
+            os.unlink(temp_glb_file.name)
+            self.selected_mesh_base64 = mesh_b64_str
+
+        props.is_processing = True
+
+        # 将相对路径转换为相对于 Blender 文件所在目录的绝对路径
+        blend_file_dir = os.path.dirname(bpy.data.filepath)
+        self.report({'INFO'}, f"blend_file_dir {blend_file_dir}")
+        self.report({'INFO'}, f"image_path {self.image_path}")
+        if self.image_path.startswith('//'):
+            self.image_path = self.image_path[2:]
+            self.image_path = os.path.join(blend_file_dir, self.image_path)
+
+        if self.selected_mesh and self.texture:
+            props.status_message = "Texturing Selected Mesh...\n" \
+                                   "This may take several minutes depending \n on your GPU power."
+        else:
+            mesh_type = 'Textured Mesh' if self.texture else 'White Mesh'
+            prompt_type = 'Text Prompt' if self.prompt else 'Image'
+            props.status_message = f"Generating {mesh_type} with {prompt_type}...\n" \
+                                   "This may take several minutes depending \n on your GPU power."
+
+        self.thread = threading.Thread(target=self.generate_model)
+        self.thread.start()
+
+        wm = context.window_manager
+        wm.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
+
+    def generate_model(self):
+        self.report({'INFO'}, f"Generation Start")
+        base_url = self.api_url.rstrip('/')
+
+        try:
+            if self.selected_mesh_base64 and self.texture:
+                # Texturing the selected mesh
+                if self.image_path and os.path.exists(self.image_path):
+                    self.report({'INFO'}, f"Post Texturing with Image")
+                    # 打开图片文件并以二进制模式读取
+                    with open(self.image_path, "rb") as file:
+                        # 读取文件内容
+                        image_data = file.read()
+                    # 对图片数据进行 Base64 编码
+                    img_b64_str = base64.b64encode(image_data).decode()
+                    response = requests.post(
+                        f"{base_url}/generate",
+                        json={
+                            "mesh": self.selected_mesh_base64,
+                            "image": img_b64_str,
+                            "octree_resolution": self.octree_resolution,
+                            "num_inference_steps": self.num_inference_steps,
+                            "guidance_scale": self.guidance_scale,
+                            "texture": self.texture  # 传递 texture 参数
+                        },
+                    )
+                else:
+                    self.report({'INFO'}, f"Post Texturing with Text")
+                    response = requests.post(
+                        f"{base_url}/generate",
+                        json={
+                            "mesh": self.selected_mesh_base64,
+                            "text": self.prompt,
+                            "octree_resolution": self.octree_resolution,
+                            "num_inference_steps": self.num_inference_steps,
+                            "guidance_scale": self.guidance_scale,
+                            "texture": self.texture  # 传递 texture 参数
+                        },
+                    )
+            else:
+                if self.image_path:
+                    if not os.path.exists(self.image_path):
+                        self.report({'ERROR'}, f"Image path does not exist {self.image_path}")
+                        raise Exception(f'Image path does not exist {self.image_path}')
+                    self.report({'INFO'}, f"Post Start Image to 3D")
+                    # 打开图片文件并以二进制模式读取
+                    with open(self.image_path, "rb") as file:
+                        # 读取文件内容
+                        image_data = file.read()
+                    # 对图片数据进行 Base64 编码
+                    img_b64_str = base64.b64encode(image_data).decode()
+                    response = requests.post(
+                        f"{base_url}/generate",
+                        json={
+                            "image": img_b64_str,
+                            "octree_resolution": self.octree_resolution,
+                            "num_inference_steps": self.num_inference_steps,
+                            "guidance_scale": self.guidance_scale,
+                            "texture": self.texture  # 传递 texture 参数
+                        },
+                    )
+                else:
+                    self.report({'INFO'}, f"Post Start Text to 3D")
+                    response = requests.post(
+                        f"{base_url}/generate",
+                        json={
+                            "text": self.prompt,
+                            "octree_resolution": self.octree_resolution,
+                            "num_inference_steps": self.num_inference_steps,
+                            "guidance_scale": self.guidance_scale,
+                            "texture": self.texture  # 传递 texture 参数
+                        },
+                    )
+            self.report({'INFO'}, f"Post Done")
+
+            if response.status_code != 200:
+                self.report({'ERROR'}, f"Generation failed: {response.text}")
+                return
+
+            # Decode base64 and save to temporary file
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".glb")
+            temp_file.write(response.content)
+            temp_file.close()
+
+            # Import the GLB file in the main thread
+            def import_handler():
+                bpy.ops.import_scene.gltf(filepath=temp_file.name)
+                os.unlink(temp_file.name)
+
+                # 获取新导入的 mesh
+                new_obj = bpy.context.selected_objects[0] if bpy.context.selected_objects else None
+                if new_obj and self.selected_mesh and self.texture:
+                    # 应用选中 mesh 的位置、旋转和缩放
+                    new_obj.location = self.selected_mesh.location
+                    new_obj.rotation_euler = self.selected_mesh.rotation_euler
+                    new_obj.scale = self.selected_mesh.scale
+
+                    # 隐藏原来的 mesh
+                    self.selected_mesh.hide_set(True)
+                    self.selected_mesh.hide_render = True
+
+                return None
+
+            bpy.app.timers.register(import_handler)
+
+        except Exception as e:
+            self.report({'ERROR'}, f"Error: {str(e)}")
+
+        finally:
+            self.task_finished = True
+            self.selected_mesh_base64 = ""
+
+
+class Hunyuan3DPanel(bpy.types.Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = 'BlenderMCP'
+    bl_label = 'Hunyuan3D-2 3D Generator'
+    bl_idname = "BLENDERMCP_PT_Hunyuan3D"
+    bl_parent_id = "BLENDERMCP_PT_Panel"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.scene.gen_3d_props
+
+        layout.prop(props, "api_url")
+        layout.prop(props, "prompt")
+        # 添加图片选择器
+        layout.prop(props, "image_path")
+        # 添加新属性的 UI 元素
+        layout.prop(props, "octree_resolution")
+        layout.prop(props, "num_inference_steps")
+        layout.prop(props, "guidance_scale")
+        # 添加 texture 属性的 UI 元素
+        layout.prop(props, "texture")
+
+        row = layout.row()
+        row.enabled = not props.is_processing
+        row.operator("object.generate_3d")
+
+        if props.is_processing:
+            if props.status_message:
+                for line in props.status_message.split("\n"):
+                    layout.label(text=line)
+            else:
+                layout.label(text="Processing...")
+
 # Registration functions
 def register():
     bpy.types.Scene.blendermcp_port = IntProperty(
@@ -670,6 +1128,14 @@ def register():
     bpy.utils.register_class(BLENDERMCP_OT_StartServer)
     bpy.utils.register_class(BLENDERMCP_OT_StopServer)
     
+    # 注册 Hunyuan3D 相关类
+    bpy.utils.register_class(Hunyuan3DProperties)
+    bpy.utils.register_class(Hunyuan3DOperator)
+    bpy.utils.register_class(Hunyuan3DPanel)
+    
+    # 添加 Hunyuan3D 属性组到场景
+    bpy.types.Scene.gen_3d_props = bpy.props.PointerProperty(type=Hunyuan3DProperties)
+    
     print("BlenderMCP addon registered")
 
 def unregister():
@@ -682,8 +1148,14 @@ def unregister():
     bpy.utils.unregister_class(BLENDERMCP_OT_StartServer)
     bpy.utils.unregister_class(BLENDERMCP_OT_StopServer)
     
+    # 注销 Hunyuan3D 相关类
+    bpy.utils.unregister_class(Hunyuan3DOperator)
+    bpy.utils.unregister_class(Hunyuan3DPanel)
+    bpy.utils.unregister_class(Hunyuan3DProperties)
+    
     del bpy.types.Scene.blendermcp_port
     del bpy.types.Scene.blendermcp_server_running
+    del bpy.types.Scene.gen_3d_props
 
     print("BlenderMCP addon unregistered")
 
