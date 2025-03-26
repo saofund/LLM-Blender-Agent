@@ -16,6 +16,11 @@ This is a project that uses the Function Call capability of different Large Lang
   - Material and texture management
   - Integration with Poly Haven resource library
   - Integration with Hyper3D Rodin AI model generation service
+- Integration with Hunyuan3D-2 generator:
+  - Generate 3D models from text descriptions
+  - Generate 3D models from image references
+  - Apply textures to existing mesh objects
+  - Customizable generation parameters (resolution, inference steps, etc.)
 - Natural language control of Blender for 3D modeling
 - Multi-modal input support (text and images) depending on the LLM capabilities
 - Easily extensible architecture, supporting the addition of new LLM providers
@@ -55,6 +60,20 @@ The Gradio Web UI offers the following features:
 - Text and image input for communicating with the LLM
 - Chat history display
 - Real-time interaction with Blender
+
+### Hunyuan3D-2 Generator
+
+The integrated Hunyuan3D-2 generator allows you to:
+- Generate detailed 3D models from text descriptions
+- Create 3D models based on reference images
+- Apply textures to existing mesh objects
+- Customize generation parameters:
+  - Octree resolution (128-512)
+  - Number of inference steps (20-50)
+  - Guidance scale (1.0-10.0)
+  - Texture generation options
+
+Access these features through the Blender UI panel under View3D > Sidebar > BlenderMCP > Hunyuan3D-2 3D Generator.
 
 ## LLM Configuration
 
@@ -107,6 +126,16 @@ Find me a wooden floor texture from Poly Haven and apply it to a new plane objec
 
 ```
 Generate a 3D model of a realistic tree using Rodin AI.
+```
+
+### Using Hunyuan3D-2 Generator
+
+```
+Generate a 3D model of a realistic car using Hunyuan3D-2.
+```
+
+```
+Apply a photorealistic brick texture to this wall using Hunyuan3D-2.
 ```
 
 ## License
