@@ -75,6 +75,76 @@ The integrated Hunyuan3D-2 generator allows you to:
 
 Access these features through the Blender UI panel under View3D > Sidebar > BlenderMCP > Hunyuan3D-2 3D Generator.
 
+## <img src="asserts/icons/hunyuan.png" width="30" height="30"> Hunyuan3D-2 Integration
+
+### About Hunyuan3D-2
+
+Hunyuan3D-2 是腾讯开发的先进3D生成模型，可以通过文本或图像生成高质量3D模型，并支持对现有模型进行纹理贴图。我们将其集成到LLM-Blender-Agent中，使用户能直接在Blender界面中利用这一技术。
+
+主要特性：
+- 文本到3D模型生成
+- 图像到3D模型生成
+- 为现有网格对象应用纹理
+- 可配置的生成参数
+
+### Installation Guide
+
+要使用Hunyuan3D-2功能，您需要安装并配置Hunyuan3D-2服务器：
+
+1. 克隆Hunyuan3D-2仓库
+```bash
+git clone https://github.com/Tencent/Hunyuan3D-2
+```
+
+2. 下载图像到3D模型权重
+```bash
+git lfs install  # 启用Git大文件存储
+git clone https://huggingface.co/tencent/Hunyuan3D-2    # 115GB
+# 可选轻量版本:
+# git clone https://huggingface.co/tencent/Hunyuan3D-2mini    # 46GB
+```
+
+3. 下载文本到图像模型
+```bash
+git lfs install
+git clone https://huggingface.co/Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled    # 27GB
+```
+
+4. 配置环境
+```bash
+# 创建并激活conda环境(推荐)
+conda create -n Hunyuan3D python=3.11
+conda activate Hunyuan3D
+
+# 从官方网站安装PyTorch
+pip3 install torch torchvision torchaudio
+
+# 安装依赖
+pip install -r requirements.txt
+pip install -e .
+
+# 安装纹理组件
+cd hy3dgen/texgen/custom_rasterizer
+python3 setup.py install
+cd ../../..
+cd hy3dgen/texgen/differentiable_renderer
+python3 setup.py install
+```
+
+5. 使用我们提供的API服务器文件
+   将原始`api_server.py`替换为我们修改的版本`hunyuan/api_server.py`
+   (官方服务器缺少文本到图像功能，新文件中标记为"TODO"的部分指示了需要替换的路径)
+
+6. 启动服务器
+```bash
+python api_server.py
+```
+
+7. 在Blender中配置
+   启动Blender后，在View3D > Sidebar > BlenderMCP > Hunyuan3D-2 3D Generator面板中设置API URL为您的服务器地址(默认为http://localhost:8080)
+
+详细安装指南请参考`hunyuan/how-to-install-hunyuan.md`文件。
+
 ## LLM Configuration
 
 Set your API keys and model configurations in the `config.json` file:

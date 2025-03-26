@@ -9,3 +9,4 @@ tenacity>=8.2.0
 volcengine-python-sdk[ark]>=0.1.0 
 gradio_modal
 modelscope_studio
+sentencepiece   # 混元文生图用
