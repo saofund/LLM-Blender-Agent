@@ -1,32 +1,52 @@
-启动混元3D-2的全部流程：
+# Complete Installation Guide for Hunyuan3D-2
 
-1、项目主页：git clone https://github.com/Tencent/Hunyuan3D-2
+## 1. Clone the Repository
+```bash
+git clone https://github.com/Tencent/Hunyuan3D-2
+```
 
-2、下载图生3D（可以单独找个目录下载权重）：
-git lfs install # 这是git large file，大权重下载模式，放心执行，只影响当前session
-git clone https://huggingface.co/tencent/Hunyuan3D-2    # 115G
-# 有个迷你版本：git clone https://huggingface.co/tencent/Hunyuan3D-2mini    # 46G
+## 2. Download the Image-to-3D Model
+Create a separate directory for weights if desired:
+```bash
+git lfs install  # Enables Git Large File Storage for the current session
+git clone https://huggingface.co/tencent/Hunyuan3D-2    # 115GB
+# Lighter version available:
+# git clone https://huggingface.co/tencent/Hunyuan3D-2mini    # 46GB
+```
 
-3、下载文生图权重（可以单独找个目录下载权重）
+## 3. Download the Text-to-Image Model
+```bash
 git lfs install
-git clone https://huggingface.co/Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled    # 27G
+git clone https://huggingface.co/Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled    # 27GB
+```
 
-4、进入Hunyuan3D-2目录
-建议新建conda环境：
+## 4. Setup Environment
+Navigate to the Hunyuan3D-2 directory:
+```bash
+# Create and activate conda environment (recommended)
 conda create -n Hunyuan3D python=3.11
 conda activate Hunyuan3D
-到官网安装torch：pip3 install torch torchvision torchaudio
-安装官方依赖：
+
+# Install PyTorch from official website
+pip3 install torch torchvision torchaudio
+
+# Install dependencies
 pip install -r requirements.txt
 pip install -e .
-# for texture
+
+# Install texture components
 cd hy3dgen/texgen/custom_rasterizer
 python3 setup.py install
 cd ../../..
 cd hy3dgen/texgen/differentiable_renderer
 python3 setup.py install
+```
 
-5、将api_server.py文件替换为这里的：hunyuan\api_server.py
-（官方server没有文生图功能，新的api_server.py上标明了需要替换的路径位置的地方为TODO）
+## 5. Replace the API Server File
+Replace the original `api_server.py` with the modified version from `hunyuan/api_server.py` 
+(The official server lacks text-to-image functionality; the new file indicates required path replacements marked as "TODO")
 
-6、启动server：python api_server.py
+## 6. Start the Server
+```bash
+python api_server.py
+```
