@@ -1,0 +1,23 @@
+{
+    "id": "msg_01EC9XpmqkmA8dfv82tNVz31",
+    "object": "chat.completion",
+    "model": "claude-3-7-sonnet-20250219",
+    "choices": [
+        {
+            "index": 0,
+            "message": {
+                "reasoning_content": "",
+                "content": "",
+                "role": "assistant"
+            },
+            "finish_reason": "end_turn",
+            "logprobs": null
+        }
+    ],
+    "created": 1743063307,
+    "usage": {
+        "prompt_tokens": 20229,
+        "completion_tokens": 95,
+        "total_tokens": 20324
+    }
+}

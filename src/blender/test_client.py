@@ -5,6 +5,7 @@ import os
 import sys
 import json
 import time
+import base64
 import tempfile
 import argparse
 import traceback
@@ -35,51 +36,126 @@ def pause():
     """暂停并等待用户按Enter键继续"""
     input("\n按Enter键继续...\n")
 
-def test_basic_operations(client: BlenderClient) -> None:
-    """测试基本操作功能"""
-    # 测试获取场景信息
+def test_get_scene_info(client: BlenderClient) -> None:
+    """测试获取场景信息"""
     print_response("获取场景信息", client.get_scene_info())
     pause()
-    
-    # 测试创建一个立方体
+
+def test_create_object(client: BlenderClient) -> None:
+    """测试创建对象"""
+    # 测试创建立方体
     print_response("创建立方体", 
                   client.create_object("CUBE", name="测试立方体", 
                                      location=(0, 0, 3), 
                                      scale=(1.5, 1.5, 1.5)))
     pause()
     
-    # 测试创建一个球体
+    # 测试创建球体
     print_response("创建球体", 
                   client.create_object("SPHERE", name="测试球体", 
                                      location=(3, 0, 3), 
                                      scale=(1.2, 1.2, 1.2)))
     pause()
+
+def test_get_object_info(client: BlenderClient) -> None:
+    """测试获取对象信息"""
+    # 创建一个测试对象
+    client.create_object("CUBE", name="测试对象信息立方体", location=(0, 0, 0))
     
-    # 测试获取特定对象信息
-    print_response("获取立方体信息", client.get_object_info("测试立方体"))
+    # 获取对象信息
+    print_response("获取对象信息", client.get_object_info("测试对象信息立方体"))
     pause()
     
-    # 测试修改对象
-    print_response("修改球体位置",
-                  client.modify_object("测试球体", location=(3, 3, 3), 
-                                      rotation=(0.5, 0.5, 0)))
+
+def test_modify_object(client: BlenderClient) -> None:
+    """测试修改对象"""
+    # 创建一个测试对象
+    client.create_object("CUBE", name="测试修改对象", location=(0, 0, 0))
+    
+    # 修改位置
+    print_response("修改对象位置",
+                  client.modify_object("测试修改对象", location=(2, 2, 2)))
     pause()
     
-    # 测试设置材质
-    print_response("为立方体设置红色材质",
-                  client.set_material("测试立方体", 
+    # 修改旋转
+    print_response("修改对象旋转",
+                  client.modify_object("测试修改对象", rotation=(0.5, 0.5, 0.5)))
+    pause()
+    
+    # 修改缩放
+    print_response("修改对象缩放",
+                  client.modify_object("测试修改对象", scale=(2.0, 2.0, 2.0)))
+    pause()
+    
+    # 修改可见性
+    print_response("修改对象可见性",
+                  client.modify_object("测试修改对象", visible=False))
+    pause()
+    
+    # 重新显示对象
+    print_response("重新显示对象",
+                  client.modify_object("测试修改对象", visible=True))
+    pause()
+    
+    # 同时修改多个属性
+    print_response("同时修改多个属性",
+                  client.modify_object("测试修改对象", 
+                                      location=(0, 0, 0),
+                                      rotation=(0, 0, 0),
+                                      scale=(1, 1, 1)))
+    pause()
+
+def test_delete_object(client: BlenderClient) -> None:
+    """测试删除对象"""
+    # 创建一个测试对象
+    client.create_object("CUBE", name="测试删除对象", location=(0, 0, 0))
+    
+    # 删除对象
+    print_response("删除对象", client.delete_object("测试删除对象"))
+    pause()
+    
+    # 测试删除不存在的对象
+    print_response("删除不存在的对象", client.delete_object("不存在的对象"))
+    pause()
+
+def test_set_material(client: BlenderClient) -> None:
+    """测试设置材质"""
+    # 创建一个测试对象
+    client.create_object("CUBE", name="测试材质对象", location=(0, 0, 0))
+    
+    # 设置红色材质
+    print_response("设置红色材质",
+                  client.set_material("测试材质对象", 
                                      material_name="红色材质", 
                                      color=[1.0, 0.0, 0.0, 1.0]))
     pause()
     
-    # 测试删除对象
-    print_response("删除球体", client.delete_object("测试球体"))
+    # 设置绿色材质
+    print_response("设置绿色材质",
+                  client.set_material("测试材质对象", 
+                                     material_name="绿色材质", 
+                                     color=[0.0, 1.0, 0.0, 1.0]))
+    pause()
+    
+    # 设置蓝色材质（半透明）
+    print_response("设置蓝色半透明材质",
+                  client.set_material("测试材质对象", 
+                                     material_name="蓝色半透明材质", 
+                                     color=[0.0, 0.0, 1.0, 0.5]))
     pause()
 
-def test_python_code_execution(client: BlenderClient) -> None:
+def test_execute_code(client: BlenderClient) -> None:
     """测试Python代码执行"""
-    # 创建一个新的球体并设置材质
-    code = """
+    # 简单代码测试
+    simple_code = """
+import bpy
+result = {"current_scene": bpy.context.scene.name}
+"""
+    print_response("执行简单代码", client.execute_code(simple_code))
+    pause()
+    
+    # 创建对象的代码
+    create_object_code = """
 import bpy
 
 # 创建一个新的球体
@@ -107,98 +183,87 @@ result = {
     "material": mat.name
 }
 """
+    print_response("执行创建对象代码", client.execute_code(create_object_code))
+    pause()
     
-    print_response("执行Python代码创建球体", client.execute_code(code))
+    # 测试复杂操作
+    complex_code = """
+import bpy
+import bmesh
+import math
+
+# 创建一个自定义网格
+mesh = bpy.data.meshes.new("CustomMesh")
+obj = bpy.data.objects.new("自定义网格对象", mesh)
+
+# 链接到场景
+bpy.context.collection.objects.link(obj)
+
+# 创建一个bmesh来编辑网格
+bm = bmesh.new()
+
+# 添加一个金字塔
+h = 2.0  # 高度
+v1 = bm.verts.new((-1, -1, 0))
+v2 = bm.verts.new((1, -1, 0))
+v3 = bm.verts.new((1, 1, 0))
+v4 = bm.verts.new((-1, 1, 0))
+v5 = bm.verts.new((0, 0, h))
+
+# 创建面
+bm.faces.new((v1, v2, v5))
+bm.faces.new((v2, v3, v5))
+bm.faces.new((v3, v4, v5))
+bm.faces.new((v4, v1, v5))
+bm.faces.new((v1, v4, v3, v2))
+
+# 更新网格
+bm.to_mesh(mesh)
+bm.free()
+
+# 设置对象位置
+obj.location = (5, 0, 0)
+
+# 创建材质
+mat = bpy.data.materials.new("自定义材质")
+mat.diffuse_color = (0.8, 0.2, 0.8, 1.0)  # 紫色
+obj.data.materials.append(mat)
+
+result = {
+    "object_name": obj.name,
+    "vertices": len(obj.data.vertices),
+    "faces": len(obj.data.polygons),
+    "location": list(obj.location)
+}
+"""
+    print_response("执行复杂自定义网格代码", client.execute_code(complex_code))
     pause()
 
-def test_polyhaven_integration(client: BlenderClient) -> None:
-    """测试Poly Haven集成"""
-    # 检查Poly Haven状态
-    ph_status = client.get_polyhaven_status()
-    print_response("Poly Haven状态", ph_status)
-    
-    if ph_status.get("status") != "success" or not ph_status.get("result", {}).get("enabled", False):
-        print("Poly Haven未启用，跳过测试")
-        return
-    
-    pause()
-    
-    # 获取HDRI分类
-    print_response("获取HDRI分类", client.get_polyhaven_categories("hdris"))
-    pause()
-    
-    # 搜索HDRI资源
-    print_response("搜索HDRI资源", client.search_polyhaven_assets("hdris"))
-    pause()
-    
-    # 如果有搜索结果，尝试下载一个HDRI
-    search_result = client.search_polyhaven_assets("hdris")
-    if search_result.get("status") == "success" and search_result.get("result"):
-        hdris = search_result.get("result")
-        if hdris and len(hdris) > 0:
-            hdri_id = list(hdris.keys())[0]  # 获取第一个HDRI的ID
-            print(f"尝试下载HDRI: {hdri_id}")
-            print_response("下载HDRI资源", 
-                          client.download_polyhaven_asset(hdri_id, "hdris", resolution="1k"))
-            pause()
-
-def test_hyper3d_integration(client: BlenderClient) -> None:
-    """测试Hyper3D Rodin集成"""
-    # 检查Hyper3D状态
-    h3d_status = client.get_hyper3d_status()
-    print_response("Hyper3D状态", h3d_status)
-    
-    if h3d_status.get("status") != "success" or not h3d_status.get("result", {}).get("enabled", False):
-        print("Hyper3D未启用，跳过测试")
-        return
-    
-    pause()
-    
-    # 创建一个模型生成任务 (这里只测试API调用，可能需要API密钥)
-    print_response("创建Rodin模型生成任务", 
-                  client.create_rodin_job(text_prompt="一个低多边形风格的猫"))
-    pause()
-
-def test_rendering(client: BlenderClient) -> None:
+def test_render_scene(client: BlenderClient) -> None:
     """测试场景渲染"""
-    # 创建一个测试场景
-    print("创建测试渲染场景...")
+    # 创建一些测试对象
+    client.create_object("CUBE", name="渲染测试立方体", 
+                        location=(0, 0, 0), 
+                        scale=(1, 1, 1))
+    client.set_material("渲染测试立方体", 
+                       material_name="红色材质", 
+                       color=[1.0, 0.0, 0.0, 1.0])
+                       
+    client.create_object("SPHERE", name="渲染测试球体", 
+                        location=(3, 0, 0), 
+                        scale=(1, 1, 1))
+    client.set_material("渲染测试球体", 
+                       material_name="绿色材质", 
+                       color=[0.0, 1.0, 0.0, 1.0])
     
-    # 创建一个平面作为地面
-    # print_response("创建地面平面", 
-    #               client.create_object("PLANE", name="渲染测试_地面", 
-    #                                  location=(0, 0, 0), 
-    #                                  scale=(5, 5, 1)))
+    # 默认参数渲染（返回图像数据）
+    print("默认参数渲染（返回图像数据）...")
+    render_result = client.render_scene()
+    print_response("默认参数渲染结果", render_result)
+    pause()
     
-    # # 创建一个立方体
-    # print_response("创建测试立方体", 
-    #               client.create_object("CUBE", name="渲染测试_立方体", 
-    #                                  location=(0, 0, 1)))
-    
-    # # 创建一个球体
-    # print_response("创建测试球体", 
-    #               client.create_object("SPHERE", name="渲染测试_球体", 
-    #                                  location=(2, 2, 1), 
-    #                                  scale=(0.8, 0.8, 0.8)))
-    
-    # # 创建一个光源
-    # print_response("创建光源", 
-    #               client.create_object("LIGHT", name="渲染测试_光源", 
-    #                                  location=(3, -3, 5)))
-    
-    # # 为物体添加材质
-    # print_response("为立方体设置红色材质",
-    #               client.set_material("渲染测试_立方体", 
-    #                                  material_name="渲染测试_红色材质", 
-    #                                  color=[1.0, 0.0, 0.0, 1.0]))
-    
-    # print_response("为球体设置蓝色材质",
-    #               client.set_material("渲染测试_球体", 
-    #                                  material_name="渲染测试_蓝色材质", 
-    #                                  color=[0.0, 0.0, 1.0, 1.0]))
-    
-    # 渲染场景并返回图像
-    print("渲染场景并获取图像数据...")
+    # 指定分辨率渲染
+    print("指定分辨率渲染...")
     render_result = client.render_scene(
         resolution_x=800, 
         resolution_y=600, 
@@ -206,7 +271,7 @@ def test_rendering(client: BlenderClient) -> None:
         auto_save=True,
         save_dir="renders"
     )
-    print_response("渲染结果", render_result)
+    print_response("指定分辨率渲染结果", render_result)
     
     # 检查是否成功获取图像数据
     result = render_result.get("result", {})
@@ -223,7 +288,7 @@ def test_rendering(client: BlenderClient) -> None:
     pause()
     
     # 渲染到文件
-    print("渲染场景到文件...")
+    print("渲染到指定文件...")
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
         output_path = tmp_file.name
     
@@ -245,13 +310,76 @@ def test_rendering(client: BlenderClient) -> None:
     
     pause()
 
+def test_save_render_image(client: BlenderClient) -> None:
+    """测试保存渲染图像"""
+    # 先渲染一个图像
+    render_result = client.render_scene(
+        resolution_x=800, 
+        resolution_y=600, 
+        return_image=True,
+        auto_save=False
+    )
+    
+    if render_result.get("status") == "success" and "image_data" in render_result.get("result", {}):
+        # 创建临时文件名
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
+            save_path = tmp_file.name
+        
+        # 测试保存图像
+        print(f"尝试保存图像到: {save_path}")
+        success = client.save_render_image(render_result, save_path)
+        
+        if success:
+            print(f"图像成功保存到: {save_path}")
+            file_size = os.path.getsize(save_path)
+            print(f"文件大小: {file_size} 字节")
+        else:
+            print("保存图像失败")
+    else:
+        print("渲染失败或未返回图像数据，无法测试保存图像功能")
+    
+    pause()
+
+def test_generate_3d_model(client: BlenderClient) -> None:
+    """测试生成3D模型"""
+    # 使用文本提示生成3D模型
+    print_response("使用文本提示生成3D模型", 
+                  client.generate_3d_model(
+                      text="一个红色的苹果",
+                      object_name=None,
+                      octree_resolution=128,
+                      num_inference_steps=20,
+                      guidance_scale=5.5,
+                      texture=True
+                  ))
+    pause()
+    
+    # 如果有图片文件，测试使用图片生成3D模型
+    test_image_path = "test_image.jpg"
+    if os.path.exists(test_image_path):
+        print_response("使用图片生成3D模型", 
+                      client.generate_3d_model(
+                          image_path=test_image_path,
+                          object_name=None,
+                          octree_resolution=128,
+                          num_inference_steps=20,
+                          guidance_scale=5.5,
+                          texture=True
+                      ))
+        pause()
+    else:
+        print(f"找不到测试图片文件: {test_image_path}，跳过图片生成测试")
+
 def main():
     """主函数"""
     parser = argparse.ArgumentParser(description="Blender MCP 客户端测试")
     parser.add_argument("--host", default="localhost", help="Blender MCP 服务器主机名")
     parser.add_argument("--port", type=int, default=9876, help="Blender MCP 服务器端口号")
-    parser.add_argument("--test", default="render", 
-                      choices=["all", "basic", "code", "polyhaven", "hyper3d", "render"], 
+    parser.add_argument("--test", default="all", 
+                      choices=["all", "scene_info", "create_object", "object_info", 
+                               "modify_object", "delete_object", "set_material", 
+                               "execute_code", "render_scene", "save_render_image",
+                               "generate_3d_model"], 
                       help="要运行的测试")
     
     args = parser.parse_args()
@@ -260,20 +388,46 @@ def main():
     client = BlenderClient(args.host, args.port)
     
     try:
-        if args.test in ["all", "basic"]:
-            test_basic_operations(client)
+        # 根据参数选择要运行的测试
+        if args.test in ["all", "scene_info"]:
+            print("\n运行测试: 获取场景信息")
+            test_get_scene_info(client)
         
-        if args.test in ["all", "code"]:
-            test_python_code_execution(client)
-        
-        if args.test in ["all", "polyhaven"]:
-            test_polyhaven_integration(client)
-        
-        if args.test in ["all", "hyper3d"]:
-            test_hyper3d_integration(client)
+        if args.test in ["all", "create_object"]:
+            print("\n运行测试: 创建对象")
+            test_create_object(client)
             
-        if args.test in ["all", "render"]:
-            test_rendering(client)
+        if args.test in ["all", "object_info"]:
+            print("\n运行测试: 获取对象信息")
+            test_get_object_info(client)
+            
+        if args.test in ["all", "modify_object"]:
+            print("\n运行测试: 修改对象")
+            test_modify_object(client)
+            
+        if args.test in ["all", "delete_object"]:
+            print("\n运行测试: 删除对象")
+            test_delete_object(client)
+            
+        if args.test in ["all", "set_material"]:
+            print("\n运行测试: 设置材质")
+            test_set_material(client)
+            
+        if args.test in ["all", "execute_code"]:
+            print("\n运行测试: 执行Python代码")
+            test_execute_code(client)
+            
+        if args.test in ["all", "render_scene"]:
+            print("\n运行测试: 渲染场景")
+            test_render_scene(client)
+            
+        if args.test in ["all", "save_render_image"]:
+            print("\n运行测试: 保存渲染图像")
+            test_save_render_image(client)
+            
+        if args.test in ["all", "generate_3d_model"]:
+            print("\n运行测试: 生成3D模型")
+            test_generate_3d_model(client)
             
     except Exception as e:
         print(f"测试过程中发生错误: {str(e)}")

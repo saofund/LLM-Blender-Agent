@@ -89,7 +89,7 @@ def create_chat_interface():
             ),
             value=[
                 # 文本消息
-                ChatbotDataMessage(role="user", content="你好，我是Blender AI助手"),
+                # ChatbotDataMessage(role="user", content="你好，我是Blender AI助手"),
                 {
                     "role": "assistant",
                     "content": "你好！我可以帮你操作Blender，请告诉我你想要做什么。",

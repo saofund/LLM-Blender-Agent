@@ -2,9 +2,11 @@
 Blender MCP客户端
 """
 import json
+import os
 import socket
 from typing import Dict, Any, List, Optional, Union, Tuple
 from datetime import datetime
+import base64
 
 class BlenderClient:
     """
@@ -62,12 +64,14 @@ class BlenderClient:
         try:
             # 创建socket连接
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-                # 设置超时时间为5秒
-                sock.settimeout(5)
-                print(f"尝试连接到 {self.host}:{self.port}...")
+                # 设置超时时间为5秒,如果是生成3d模型，则设置为10秒
+                if command_type == 'generate_3d_model':
+                    sock.settimeout(30)
+                else:
+                    sock.settimeout(10)
+                # print(f"尝试连接到 {self.host}:{self.port}...")
                 sock.connect((self.host, self.port))
-                print("连接成功，发送数据...")
-                
+                # print("连接成功，发送数据...")
                 # 发送命令
                 command_data = json.dumps(command).encode('utf-8')
                 sock.sendall(command_data)
@@ -75,7 +79,7 @@ class BlenderClient:
                 
                 # 接收响应
                 response_data = b''
-                print("等待服务器响应...")
+                # print("等待服务器响应...")
                 while True:
                     try:
                         data = sock.recv(8192)
@@ -123,6 +127,66 @@ class BlenderClient:
             场景信息
         """
         return self.send_command("get_scene_info")
+    
+    def generate_3d_model(self, text: Optional[str] = None, image_path: Optional[str] = None,
+                        object_name: Optional[str] = None, octree_resolution: int = 256,
+                        num_inference_steps: int = 20, guidance_scale: float = 5.5,
+                        texture: bool = False) -> Dict[str, Any]:
+        """
+        调用Hunyuan3D-2生成3D模型
+
+        Args:
+            text: 文本提示，描述要生成的3D模型（如果提供了image_path，则text会被忽略）
+            image_path: 图片路径，用于图像到3D生成（优先级高于text）
+            object_name: 要应用纹理的现有模型名称
+            octree_resolution: 3D生成的八叉树分辨率，默认为256
+            num_inference_steps: 推理步骤数，默认为20
+            guidance_scale: 引导比例，默认为5.5
+            texture: 是否生成纹理，默认为False
+
+        Returns:
+            生成结果
+        """
+        params = {}
+        
+        if image_path:
+            # 优先使用图片，如果有图片则忽略文本
+            try:
+                with open(image_path, "rb") as img_file:
+                    image_data = img_file.read()
+                image_base64 = base64.b64encode(image_data).decode('utf-8')
+                params["image_data"] = image_base64
+                print(f"使用图片进行3D生成: {image_path}")
+            except Exception as e:
+                print(f"读取图片文件失败: {str(e)}，尝试使用文本提示")
+                # 图片读取失败时，检查是否有文本提示可用
+                if text:
+                    params["text"] = text
+                else:
+                    return {
+                        "status": "error", 
+                        "message": f"读取图片文件失败且没有提供文本提示: {str(e)}"
+                    }
+        elif text:
+            # 没有图片时使用文本
+            params["text"] = text
+            print(f"使用文本进行3D生成: {text}")
+        else:
+            # 既没有图片也没有文本
+            return {
+                "status": "error",
+                "message": "必须提供文本提示或图片路径"
+            }
+        
+        if object_name:
+            params["object_name"] = object_name
+            
+        params["octree_resolution"] = octree_resolution
+        params["num_inference_steps"] = num_inference_steps
+        params["guidance_scale"] = guidance_scale
+        params["texture"] = texture
+            
+        return self.send_command("generate_3d_model", params)
     
     def create_object(self, obj_type: str, name: Optional[str] = None,
                     location: Tuple[float, float, float] = (0, 0, 0),
@@ -255,104 +319,6 @@ class BlenderClient:
             
         return self.send_command("set_material", params)
     
-    # Poly Haven集成相关方法
-    
-    def get_polyhaven_status(self) -> Dict[str, Any]:
-        """
-        获取Poly Haven状态
-        
-        Returns:
-            Poly Haven状态
-        """
-        return self.send_command("get_polyhaven_status")
-    
-    def get_polyhaven_categories(self, asset_type: str) -> Dict[str, Any]:
-        """
-        获取Poly Haven资源分类
-        
-        Args:
-            asset_type: 资源类型，如hdris、textures、models、all
-            
-        Returns:
-            分类列表
-        """
-        return self.send_command("get_polyhaven_categories", {"asset_type": asset_type})
-    
-    def search_polyhaven_assets(self, asset_type: Optional[str] = None,
-                               categories: Optional[List[str]] = None) -> Dict[str, Any]:
-        """
-        搜索Poly Haven资源
-        
-        Args:
-            asset_type: 资源类型
-            categories: 分类
-            
-        Returns:
-            搜索结果
-        """
-        params = {}
-        
-        if asset_type:
-            params["asset_type"] = asset_type
-            
-        if categories:
-            params["categories"] = categories
-            
-        return self.send_command("search_polyhaven_assets", params)
-    
-    def download_polyhaven_asset(self, asset_id: str, asset_type: str,
-                                resolution: str = "1k",
-                                file_format: Optional[str] = None) -> Dict[str, Any]:
-        """
-        下载Poly Haven资源
-        
-        Args:
-            asset_id: 资源ID
-            asset_type: 资源类型
-            resolution: 分辨率
-            file_format: 文件格式
-            
-        Returns:
-            下载结果
-        """
-        params = {
-            "asset_id": asset_id,
-            "asset_type": asset_type,
-            "resolution": resolution
-        }
-        
-        if file_format:
-            params["file_format"] = file_format
-            
-        return self.send_command("download_polyhaven_asset", params)
-    
-    def set_texture(self, object_name: str, texture_id: str) -> Dict[str, Any]:
-        """
-        应用纹理
-        
-        Args:
-            object_name: 对象名称
-            texture_id: 纹理ID
-            
-        Returns:
-            应用结果
-        """
-        return self.send_command("set_texture", {
-            "object_name": object_name,
-            "texture_id": texture_id
-        })
-    
-    # Hyper3D Rodin集成相关方法
-    
-    def get_hyper3d_status(self) -> Dict[str, Any]:
-        """
-        获取Hyper3D状态
-        
-        Returns:
-            Hyper3D状态
-        """
-        return self.send_command("get_hyper3d_status")
-    
     def render_scene(self, output_path: Optional[str] = None, 
                     resolution_x: Optional[int] = None, 
                     resolution_y: Optional[int] = None,
@@ -420,9 +386,6 @@ class BlenderClient:
         Returns:
             是否成功保存图像
         """
-        import base64
-        import os
-        
         try:
             # 检查结果是否包含图像数据
             if render_result.get("status") != "success":
@@ -453,74 +416,6 @@ class BlenderClient:
         except Exception as e:
             print(f"保存图像时出错: {str(e)}")
             return False
-    
-    def create_rodin_job(self, text_prompt: Optional[str] = None,
-                        images: Optional[List[Tuple[str, str]]] = None,
-                        bbox_condition: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """
-        创建Rodin模型生成任务
-        
-        Args:
-            text_prompt: 文本提示
-            images: 参考图像列表
-            bbox_condition: 边界框条件
-            
-        Returns:
-            任务创建结果
-        """
-        params = {}
-        
-        if text_prompt:
-            params["text_prompt"] = text_prompt
-            
-        if images:
-            params["images"] = images
-            
-        if bbox_condition:
-            params["bbox_condition"] = bbox_condition
-            
-        return self.send_command("create_rodin_job", params)
-    
-    def poll_rodin_job_status(self, job_id: str, mode: str = "MAIN_SITE") -> Dict[str, Any]:
-        """
-        查询Rodin任务状态
-        
-        Args:
-            job_id: 任务ID
-            mode: 模式，MAIN_SITE或FAL_AI
-            
-        Returns:
-            任务状态
-        """
-        params = {}
-        
-        if mode == "MAIN_SITE":
-            params["subscription_key"] = job_id
-        else:
-            params["request_id"] = job_id
-            
-        return self.send_command("poll_rodin_job_status", params)
-    
-    def import_generated_asset(self, job_id: str, name: str, mode: str = "MAIN_SITE") -> Dict[str, Any]:
-        """
-        导入生成的资源
-        
-        Args:
-            job_id: 任务ID
-            name: 资源名称
-            mode: 模式，MAIN_SITE或FAL_AI
-            
-        Returns:
-            导入结果
-        """
-        params = {"name": name}
-        
-        if mode == "MAIN_SITE":
-            params["task_uuid"] = job_id
-        else:
-            params["request_id"] = job_id
-            
-        return self.send_command("import_generated_asset", params)
 
 def main():
     """

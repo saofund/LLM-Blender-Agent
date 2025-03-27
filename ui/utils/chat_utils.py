@@ -109,54 +109,92 @@ def submit(input_value, chatbot_value):
                 *[{"type": "image_url", "image_url": {"url": file}} for file in input_value["files"]]
             ]
         
-        # 调用Agent进行流式聊天
-        response_stream = agent.chat_stream(user_message=user_message, temperature=0.7)
+        # 自动生成的最大轮数
+        max_auto_rounds = 10
+        current_rounds = 0
         
-        # 处理流式响应
-        first_output = True
-        current_function = None  # 记录当前正在执行的函数
-        for chunk in response_stream:
-            content_chunk = chunk.get("content")
-            function_call = chunk.get("function_call")
-            function_result = chunk.get("function_result")
+        # 循环生成，直到收到"完成"开头的回复或达到最大轮数
+        while current_rounds < max_auto_rounds:
+            current_rounds += 1
             
-            # 更新聊天内容
-            if content_chunk:
-                if "content" not in chatbot_value[-1] or chatbot_value[-1]["content"] is None:
-                    chatbot_value[-1]["content"] = content_chunk
-                else:
-                    chatbot_value[-1]["content"] += content_chunk
+            # 调用Agent进行流式聊天
+            response_stream = agent.chat_stream(user_message=user_message, temperature=0.7)
+            
+            # 处理流式响应
+            first_output = True
+            current_function = None  # 记录当前正在执行的函数
+            response_content = ""  # 存储完整的响应内容
+            
+            for chunk in response_stream:
+                content_chunk = chunk.get("content")
+                function_call = chunk.get("function_call")
+                function_result = chunk.get("function_result")
                 
-            # 如果有函数调用，添加函数调用信息（仅当是新函数时）
-            if function_call:
-                function_name = function_call.get("name", "未知函数")
-                # 检查是否是新的函数调用
-                if function_name != current_function:
-                    current_function = function_name
+                # 更新聊天内容和收集完整响应
+                if content_chunk:
+                    response_content += content_chunk
                     if "content" not in chatbot_value[-1] or chatbot_value[-1]["content"] is None:
-                        chatbot_value[-1]["content"] = f"正在执行：{function_name}..."
+                        chatbot_value[-1]["content"] = content_chunk
                     else:
-                        chatbot_value[-1]["content"] += f"\n正在执行：{function_name}..."
-            
-            # 如果有函数调用结果，添加函数调用结果到当前消息
-            if function_result:
-                # 在当前消息中添加函数调用结果
-                if "content" not in chatbot_value[-1] or chatbot_value[-1]["content"] is None:
-                    chatbot_value[-1]["content"] = json.dumps(function_result, ensure_ascii=False, indent=2)
+                        chatbot_value[-1]["content"] += content_chunk
+                
+                # 如果有函数调用，添加函数调用信息（仅当是新函数时）
+                if function_call:
+                    function_name = function_call.get("name", "未知函数")
+                    # 检查是否是新的函数调用
+                    if function_name != current_function:
+                        current_function = function_name
+                        if "content" not in chatbot_value[-1] or chatbot_value[-1]["content"] is None:
+                            chatbot_value[-1]["content"] = f"正在执行：{function_name}..."
+                        else:
+                            chatbot_value[-1]["content"] += f"\n正在执行：{function_name}..."
+                
+                # 如果有函数调用结果，添加函数调用结果到当前消息
+                if function_result:
+                    # 在当前消息中添加函数调用结果
+                    if "content" not in chatbot_value[-1] or chatbot_value[-1]["content"] is None:
+                        chatbot_value[-1]["content"] = json.dumps(function_result, ensure_ascii=False, indent=2)
+                    else:
+                        chatbot_value[-1]["content"] += f"\n\n```json\n{json.dumps(function_result, ensure_ascii=False, indent=2)}\n```"
+                
+                # 第一次有内容输出时就取消loading状态
+                if first_output and (content_chunk or function_call or function_result):
+                    chatbot_value[-1]["loading"] = False
+                    first_output = False
+                
+                # 更新UI
+                if response_content:
+                    yield gr.update(loading=False), gr.update(value=chatbot_value)
                 else:
-                    chatbot_value[-1]["content"] += f"\n\n```json\n{json.dumps(function_result, ensure_ascii=False, indent=2)}\n```"
+                    print("该轮中LLM没有内容输出")
             
-            # 第一次有内容输出时就取消loading状态
-            if first_output and (content_chunk or function_call or function_result):
-                chatbot_value[-1]["loading"] = False
-                first_output = False
+            # 完成一轮对话，更新最后一条消息的状态
+            chatbot_value[-1]["loading"] = False
+            chatbot_value[-1]["status"] = "done"
             
-            # 更新UI
-            yield gr.update(loading=False), gr.update(value=chatbot_value)
-        
-        # 完成对话，更新最后一条消息的状态
-        chatbot_value[-1]["loading"] = False
-        chatbot_value[-1]["status"] = "done"
+            # 检查是否需要结束自动生成循环
+            response_text = response_content.strip()
+            should_stop = (
+                response_text.startswith("全部完成") or 
+                response_text.endswith("全部完成") or
+                "等待用户指令" in response_text or
+                current_rounds >= max_auto_rounds
+            )
+            
+            if should_stop:
+                # 如果满足停止条件，结束循环
+                break
+            else:
+                # 继续下一轮生成，但不添加新的用户消息到UI中
+                # 为下一轮生成创建新的助手消息
+                chatbot_value.append({"role": "assistant", "loading": True, "status": "pending"})
+                yield gr.update(loading=True), gr.update(value=chatbot_value)
+                
+                # 下一轮传入空字符串作为用户消息
+                if not response_content:
+                    user_message = ""
+                else:
+                    user_message = "继续"
         
     except Exception as e:
         logger.error(f"聊天过程中发生错误: {str(e)}")

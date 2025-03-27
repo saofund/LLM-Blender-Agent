@@ -44,7 +44,7 @@ class BlenderAgent:
                 "name": "create_object",
                 "description": "在场景中创建指定类型的新对象",
                 "parameters": {
-                    "type": {
+                    "obj_type": {   # 因为type是python的关键字，所以改用obj_type
                         "type": "string",
                         "description": "对象类型，可选值：CUBE、SPHERE、CYLINDER、PLANE、CONE、TORUS、EMPTY、CAMERA、LIGHT",
                         "enum": ["CUBE", "SPHERE", "CYLINDER", "PLANE", "CONE", "TORUS", "EMPTY", "CAMERA", "LIGHT"]
@@ -67,6 +67,25 @@ class BlenderAgent:
                     }
                 },
                 "required": ["type"]
+            },
+            {
+                "name": "generate_3d_model",
+                "description": "调用Hunyuan3D-2生成3D模型",
+                "parameters": {
+                    "text": {
+                        "type": "string",
+                        "description": "文本提示，描述要生成的3D模型（如果提供了image_path，则text会被忽略）"
+                    },
+                    "image_path": {
+                        "type": "string",
+                        "description": "图片路径，用于图像到3D生成（优先级高于text）"
+                    },
+                    "texture": {
+                        "type": "boolean",
+                        "description": "是否生成纹理，除非用户明确提出，否则默认为False，因为生成纹理时间太长"
+                    }
+                },
+                "required": []
             },
             {
                 "name": "modify_object",
@@ -117,17 +136,17 @@ class BlenderAgent:
                 },
                 "required": ["name"]
             },
-            {
-                "name": "execute_code",
-                "description": "在Blender环境中执行任意Python代码（高级功能，谨慎使用）",
-                "parameters": {
-                    "code": {
-                        "type": "string",
-                        "description": "要执行的Python代码"
-                    }
-                },
-                "required": ["code"]
-            },
+            # {
+            #     "name": "execute_code",
+            #     "description": "在Blender环境中执行任意Python代码（高级功能，谨慎使用）",
+            #     "parameters": {
+            #         "code": {
+            #             "type": "string",
+            #             "description": "要执行的Python代码"
+            #         }
+            #     },
+            #     "required": ["code"]
+            # },
             {
                 "name": "set_material",
                 "description": "为指定对象创建或应用材质",
@@ -166,7 +185,35 @@ class BlenderAgent:
                          {"type": "image_url", "image_url": {"url": "图片URL"}}
                      ]
         """
+        # 如果content是列表且role是user，检查是否包含图片，并将图片URL添加到文本消息中
+        if isinstance(content, list) and role == "user":
+            text_content = ""
+            image_urls = []
+            
+            # 提取所有文本内容和图片URL
+            for item in content:
+                if item.get("type") == "text":
+                    text_content += item.get("text", "")
+                elif item.get("type") == "image_url" and "image_url" in item:
+                    image_urls.append(item["image_url"].get("url", ""))
+            
+            # 如果有图片URL，将其添加到文本消息的末尾
+            if image_urls:
+                if text_content:
+                    text_content += "，"
+                text_content += f"图片url为: {', '.join(image_urls)}"
+                
+            # 使用处理后的文本内容替换原始content
+            if text_content:
+                content = text_content
+        
         self.messages.append({"role": role, "content": content})
+        
+        # 控制对话历史长度，只保留前1轮和最新5轮的消息
+        N, M = 1, 5
+        if len(self.messages) > (N * 2) + (M * 2):  # 每轮包含user和assistant两条消息
+            # 保留前N轮（N*2条消息）和最新M轮（M*2条消息）
+            self.messages = self.messages[:N] + self.messages[-(M*2):]
     
     def chat_stream(self, user_message: Union[str, List[Dict[str, Any]]], functions: List[Dict[str, Any]] = None, 
                     temperature: float = 0.7) -> Iterator[Dict[str, Any]]:
@@ -185,7 +232,8 @@ class BlenderAgent:
         functions_to_use = functions if functions is not None else self.functions
         
         # 添加用户消息到历史
-        self.add_message("user", user_message)
+        if user_message:
+            self.add_message("user", user_message)
         
         # 检查LLM是否支持流式响应
         if hasattr(self.llm, 'chat_stream'):
@@ -244,34 +292,7 @@ class BlenderAgent:
         
         else:
             # 如果LLM不支持流式响应，则使用普通chat接口并模拟流式返回
-            response = self.llm.chat(
-                messages=self.messages,
-                functions=functions_to_use,
-                temperature=temperature
-            )
-            
-            content = response.get("content", "")
-            function_call = response.get("function_call")
-            
-            # 将响应添加到历史
-            if content:
-                self.add_message("assistant", content)
-                
-                # 模拟流式返回，一次性返回全部内容
-                yield {"content": content, "function_call": None}
-            
-            if function_call:
-                self.add_message("assistant", f"我将帮你执行以下操作: {function_call['name']}")
-                
-                # 返回函数调用信息
-                yield {"content": None, "function_call": function_call}
-                
-                # 执行函数并返回结果
-                function_result = self._execute_function(function_call)
-                self.add_message("user", f"函数 {function_call['name']} 的执行结果: {json.dumps(function_result, ensure_ascii=False)}")
-                
-                # 添加函数执行结果到响应
-                yield {"content": None, "function_call": function_call, "function_result": function_result}
+            raise NotImplementedError("当前LLM不支持流式响应")
     
     def _execute_function(self, function_call: Dict[str, Any]) -> Dict[str, Any]:
         """

@@ -137,10 +137,10 @@ class AIMLAPI_LLM(BaseLLM):
                 "temperature": temperature,
                 "max_tokens": max_tokens or 512,
                 "stream": True,
-                "system": "你是一位专业的3D建模助手，可以通过自然语言指令控制Blender软件进行3D建模。"
+                "system": "你是一位专业的3D建模助手，可以通过自然语言指令控制Blender软件进行3D建模。" \
+                    "当用户的指令完成时，请返回'全部完成';当需要用户指令时，请返回'等待用户指令'"
             }
             
-            # 添加工具（函数）
             if formatted_functions:
                 payload["tools"] = formatted_functions
                 payload["tool_choice"] = {"type": "auto"}
@@ -152,11 +152,13 @@ class AIMLAPI_LLM(BaseLLM):
             # 处理流式响应
             accumulated_content = ""
             function_call = None
+            current_function_args_str = ""  # 用于累积函数参数的字符串
             
             for line in response.iter_lines():
                 if line:
                     # 删除"data: "前缀并解析JSON
                     line_text = line.decode("utf-8")
+                    print(line_text)
                     if line_text.startswith("data: "):
                         json_str = line_text[6:]
                         if json_str == "[DONE]":
@@ -193,30 +195,51 @@ class AIMLAPI_LLM(BaseLLM):
                                     
                                     # 更新函数参数
                                     if "function" in tool_call and "arguments" in tool_call["function"]:
-                                        # 处理参数 - 可能是部分JSON字符串
+                                        # 累积函数参数字符串
                                         args_str = tool_call["function"]["arguments"]
+                                        current_function_args_str += args_str
+                                        
+                                        # 尝试解析完整的JSON
                                         try:
-                                            # 尝试解析完整的JSON
-                                            args = json.loads(args_str)
-                                            function_call["arguments"] = args
-                                        except json.JSONDecodeError:
-                                            # 如果无法解析，则等待更多块
+                                            # 首先验证是否有一个可能完整的JSON字符串
+                                            args_str_clean = current_function_args_str.strip()
+                                            if args_str_clean and args_str_clean[0] == "{" and args_str_clean[-1] == "}":
+                                                try:
+                                                    # 尝试解析累积的参数
+                                                    args = json.loads(args_str_clean)
+                                                    function_call["arguments"] = args
+                                                except json.JSONDecodeError:
+                                                    # 如果无法解析，继续累积
+                                                    pass
+                                        except Exception:
+                                            # 捕获所有异常，确保处理继续
                                             pass
                                     
-                                    # 当函数调用完整时，返回
-                                    if function_call["name"] and hasattr(function_call, "arguments"):
+                                    # 当函数调用完整时，且有函数名称，则返回
+                                    if function_call["name"] and isinstance(function_call.get("arguments"), dict):
                                         yield {"content": None, "function_call": function_call}
                         except json.JSONDecodeError:
                             print(f"无法解析JSON: {json_str}")
             
-            # 如果我们收到完整的函数调用，但尚未解析参数
-            if function_call and not function_call.get("arguments"):
-                # 尝试从收集的部分数据中构建完整的函数调用
+            # 流结束后，尝试最后一次解析函数参数
+            if function_call and function_call["name"] and not function_call.get("arguments"):
                 try:
-                    # 这里可能需要添加额外的逻辑来处理部分函数调用
+                    # 最后尝试解析函数参数
+                    args_str_clean = current_function_args_str.strip()
+                    if args_str_clean and args_str_clean[0] == "{" and args_str_clean[-1] == "}":
+                        args = json.loads(args_str_clean)
+                        function_call["arguments"] = args
+                        # 返回完整的函数调用
+                        yield {"content": None, "function_call": function_call}
+                    else:
+                        # 如果参数字符串不是有效的JSON格式，创建一个空对象
+                        function_call["arguments"] = {}
+                        yield {"content": None, "function_call": function_call}
+                except Exception as e:
+                    print(f"最终解析函数参数失败: {str(e)}")
+                    # 确保至少有一个空对象
+                    function_call["arguments"] = {}
                     yield {"content": None, "function_call": function_call}
-                except:
-                    pass
         
         except Exception as e:
             # 打印请求体以便调试

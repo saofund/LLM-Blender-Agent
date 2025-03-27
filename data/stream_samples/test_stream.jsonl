@@ -1,0 +1,52 @@
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"content":"","role":"assistant","refusal":null}}],"created":1743059269,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null}}],"created":1743059269,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"content":"我看","role":"assistant","refusal":null}}],"created":1743059269,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"content":"到当前场景中有4个对象：一个立","role":"assistant","refusal":null}}],"created":1743059269,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"content":"方体(Cube)位于原点，一个光","role":"assistant","refusal":null}}],"created":1743059269,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"content":"源(Light)，一个相机(Camera)，以及","role":"assistant","refusal":null}}],"created":1743059269,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"content":"一个名为\"测试修改对象\"的网","role":"assistant","refusal":null}}],"created":1743059270,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"content":"格物体位于(2, 2, 2","role":"assistant","refusal":null}}],"created":1743059270,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"content":")坐标处。\n\n我将调","role":"assistant","refusal":null}}],"created":1743059270,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"content":"整相机位置，使其能够看","role":"assistant","refusal":null}}],"created":1743059270,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"content":"到所有物体。","role":"assistant","refusal":null}}],"created":1743059271,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null}}],"created":1743059271,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":{"completion_tokens":95,"prompt_tokens":17753,"total_tokens":17848}}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"id":"toolu_01Q9mvSzsP2cGRoG4F6rHHkL","index":0,"type":"function","function":{"arguments":"","name":"modify_object"}}],"content":null,"refusal":null}}],"created":1743059271,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"id":"toolu_01Q9mvSzsP2cGRoG4F6rHHkL","index":0,"type":"function","function":{"name":"modify_object","arguments":""}}],"refusal":null}}],"created":1743059271,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"id":"toolu_01Q9mvSzsP2cGRoG4F6rHHkL","index":0,"type":"function","function":{"name":"modify_object","arguments":"{\"name\": \"C"}}],"refusal":null}}],"created":1743059271,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"id":"toolu_01Q9mvSzsP2cGRoG4F6rHHkL","index":0,"type":"function","function":{"name":"modify_object","arguments":"amera\""}}],"refusal":null}}],"created":1743059271,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"id":"toolu_01Q9mvSzsP2cGRoG4F6rHHkL","index":0,"type":"function","function":{"name":"modify_object","arguments":", \"locati"}}],"refusal":null}}],"created":1743059272,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"id":"toolu_01Q9mvSzsP2cGRoG4F6rHHkL","index":0,"type":"function","function":{"name":"modify_object","arguments":"on\": "}}],"refusal":null}}],"created":1743059272,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"id":"toolu_01Q9mvSzsP2cGRoG4F6rHHkL","index":0,"type":"function","function":{"name":"modify_object","arguments":"[10,-10,7]"}}],"refusal":null}}],"created":1743059272,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"id":"toolu_01Q9mvSzsP2cGRoG4F6rHHkL","index":0,"type":"function","function":{"name":"modify_object","arguments":", \"ro"}}],"refusal":null}}],"created":1743059272,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"id":"toolu_01Q9mvSzsP2cGRoG4F6rHHkL","index":0,"type":"function","function":{"name":"modify_object","arguments":"tati"}}],"refusal":null}}],"created":1743059272,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"id":"toolu_01Q9mvSzsP2cGRoG4F6rHHkL","index":0,"type":"function","function":{"name":"modify_object","arguments":"on\": [1.0"}}],"refusal":null}}],"created":1743059272,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","content":null,"tool_calls":[{"id":"toolu_01Q9mvSzsP2cGRoG4F6rHHkL","index":0,"type":"function","function":{"name":"modify_object","arguments":",0.0,0.8]}"}}],"refusal":null}}],"created":1743059272,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"role":"assistant","content":"","refusal":null}}],"created":1743059272,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":{"completion_tokens":95,"prompt_tokens":17753,"total_tokens":17848}}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"delta":{"content":"","role":"assistant","refusal":null}}],"created":1743059272,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":null}
+
+data: {"id":"msg_01QtjvapCwaBY9mN4WAC7MRu","choices":[{"index":0,"finish_reason":"tool_calls"}],"created":1743059272,"model":"claude-3-7-sonnet-20250219","object":"chat.completion.chunk","usage":{"completion_tokens":6647,"prompt_tokens":17753,"total_tokens":24400}}
+

@@ -32,7 +32,7 @@ class Hunyuan3DProperties(bpy.types.PropertyGroup):
     api_url: StringProperty(
         name="API URL",
         description="URL of the Text-to-3D API service",
-        default="http://192.168.111.3:8081"
+        default="http://192.168.111.3:9875"
     )
     is_processing: BoolProperty(
         name="Processing",
@@ -655,8 +655,8 @@ class BlenderMCPServer:
         return result
 
     def generate_3d_model(self, text=None, image_data=None, object_name=None, 
-                         api_url="http://192.168.111.3:8081", octree_resolution=256, 
-                         num_inference_steps=20, guidance_scale=5.5, texture=False):
+                         api_url="http://192.168.111.3:9875", octree_resolution=256, 
+                         num_inference_steps=20, guidance_scale=10, texture=False):
         """Generate 3D model using Hunyuan3D API
         
         Args:
@@ -676,6 +676,10 @@ class BlenderMCPServer:
             # 检查参数
             if not text and not image_data:
                 raise ValueError("必须提供文本提示或图像数据")
+            
+            # 优先使用用户在界面上设置的API URL
+            if hasattr(bpy.context.scene, "gen_3d_props") and bpy.context.scene.gen_3d_props.api_url:
+                api_url = bpy.context.scene.gen_3d_props.api_url
             
             # 准备API请求
             base_url = api_url.rstrip('/')
@@ -736,51 +740,106 @@ class BlenderMCPServer:
                 # 添加到请求
                 request_data["mesh"] = selected_mesh_base64
             
-            # 发送请求
-            print(f"发送Hunyuan3D请求: {base_url}/generate")
-            response = requests.post(
-                f"{base_url}/generate",
-                json=request_data,
-            )
-            
-            # 检查响应
-            if response.status_code != 200:
-                raise ValueError(f"生成失败: {response.text}")
-            
-            # 保存为临时GLB文件
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".glb")
-            temp_file.write(response.content)
-            temp_file.close()
-            
-            # 在主线程中导入模型
-            def import_handler():
-                # 导入GLB
-                bpy.ops.import_scene.gltf(filepath=temp_file.name)
-                os.unlink(temp_file.name)
-                
-                # 获取新导入的对象
-                new_obj = None
-                for obj in bpy.context.selected_objects:
-                    if obj.type == 'MESH':
-                        new_obj = obj
-                        break
-                
-                # 应用位置、旋转和缩放
-                if new_obj and selected_mesh and texture:
-                    new_obj.location = selected_mesh.location
-                    new_obj.rotation_euler = selected_mesh.rotation_euler
-                    new_obj.scale = selected_mesh.scale
+            # 创建一个线程来执行API请求
+            def api_request_thread():
+                try:
+                    print(f"发送Hunyuan3D请求: {base_url}/generate")
                     
-                    # 隐藏原始对象
-                    selected_mesh.hide_set(True)
-                    selected_mesh.hide_render = True
-                
-                return None
+                    # 创建一个事件对象用于线程通信
+                    request_completed = threading.Event()
+                    response_data = [None]  # 使用列表存储响应，便于在内部函数中修改
+                    
+                    # 内部函数：执行实际的API请求
+                    def make_request():
+                        try:
+                            response = requests.post(
+                                f"{base_url}/generate",
+                                json=request_data,
+                                timeout=55  # 设置请求超时为55秒，留5秒处理时间
+                            )
+                            
+                            if response.status_code != 200:
+                                print(f"生成失败: {response.text}")
+                                response_data[0] = None
+                            else:
+                                response_data[0] = response
+                                
+                            # 标记请求已完成
+                            request_completed.set()
+                        except Exception as e:
+                            print(f"API请求异常: {str(e)}")
+                            request_completed.set()
+                    
+                    # 启动请求线程
+                    request_thread = threading.Thread(target=make_request)
+                    request_thread.daemon = True
+                    request_thread.start()
+                    
+                    # 等待请求完成或超时(60秒)
+                    request_completed.wait(60)
+                    
+                    # 检查请求是否完成并处理结果
+                    if not request_completed.is_set() or response_data[0] is None:
+                        print("API请求超时或失败，1分钟强制返回")
+                        # 在主线程中调用函数通知用户
+                        def timeout_handler():
+                            # 更新UI状态
+                            if hasattr(bpy.context.scene, "gen_3d_props"):
+                                props = bpy.context.scene.gen_3d_props
+                                props.is_processing = False
+                                props.status_message = "生成请求超时或失败，请稍后再试"
+                            print("API请求已超时，请稍后再试")
+                            return None
+                        
+                        bpy.app.timers.register(timeout_handler)
+                        return
+                    
+                    # 处理成功的响应
+                    response = response_data[0]
+                    
+                    # 保存为临时GLB文件
+                    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".glb")
+                    temp_file.write(response.content)
+                    temp_file.close()
+                    
+                    # 在主线程中导入模型
+                    def import_handler():
+                        # 导入GLB
+                        bpy.ops.import_scene.gltf(filepath=temp_file.name)
+                        os.unlink(temp_file.name)
+                        
+                        # 获取新导入的对象
+                        new_obj = None
+                        for obj in bpy.context.selected_objects:
+                            if obj.type == 'MESH':
+                                new_obj = obj
+                                break
+                        
+                        # 应用位置、旋转和缩放
+                        if new_obj and selected_mesh and texture:
+                            new_obj.location = selected_mesh.location
+                            new_obj.rotation_euler = selected_mesh.rotation_euler
+                            new_obj.scale = selected_mesh.scale
+                            
+                            # 隐藏原始对象
+                            selected_mesh.hide_set(True)
+                            selected_mesh.hide_render = True
+                        
+                        return None
+                    
+                    # 注册导入操作
+                    bpy.app.timers.register(import_handler)
+                    
+                except Exception as e:
+                    print(f"API请求线程错误: {str(e)}")
+                    traceback.print_exc()
             
-            # 注册导入操作
-            bpy.app.timers.register(import_handler)
+            # 启动线程
+            thread = threading.Thread(target=api_request_thread)
+            thread.daemon = True
+            thread.start()
             
-            # 返回成功
+            # 返回立即响应
             result = {
                 "status": "generating",
                 "message": "3D模型生成中...",
