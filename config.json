@@ -22,7 +22,7 @@
       "model": "kimi-latest-32k"
     },
     "aimlapi": {
-      "api_key": "6ba7b4bca3854fcbb82d0a08332e63ba",
+      "api_key": "",
       "model": "claude-3-7-sonnet-20250219"
     },
     "deepseek": {
